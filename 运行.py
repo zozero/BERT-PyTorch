@@ -5,7 +5,7 @@ from importlib import import_module
 import numpy as np
 import torch
 
-from 多个工具 import 构建数据集, 构建迭代器
+from 多个工具 import 构建数据集, 构建迭代器, 获得时间偏移量
 
 解析 = argparse.ArgumentParser(description='中文文本分类')
 解析.add_argument('--模型', type=str, required=True, help='选择一个模型：形变双向编码器表示法库，文心大模型类')
@@ -25,5 +25,13 @@ if __name__ == '__main__':
     开始时间 = time.time()
     print("正在载入数据......")
     训练用数据, 验证用数据, 测试用数据 = 构建数据集(配置)
+    # 验证用数据 = 构建数据集(配置)
 
     训练用迭代器 = 构建迭代器(训练用数据, 配置)
+    验证用迭代器 = 构建迭代器(验证用数据, 配置)
+    测试用迭代器 = 构建迭代器(测试用数据, 配置)
+    # next(训练用迭代器)
+    时间偏移量 = 获得时间偏移量(开始时间)
+    print("花费的时间：", 时间偏移量)
+
+    模型 = x.Model(配置).to(配置.设备)

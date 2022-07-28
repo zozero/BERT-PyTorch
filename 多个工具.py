@@ -1,4 +1,8 @@
+import time
+
+import torch
 from tqdm import tqdm
+from datetime import timedelta
 
 填充, 分类 = '[PAD]', '[CLS]'
 
@@ -34,13 +38,60 @@ def 构建数据集(配置):
     验证用数据集 = 载入数据(配置.验证_路径, 配置.句子长度)
     测试用数据集 = 载入数据(配置.测试_路径, 配置.句子长度)
     return 训练用数据集, 验证用数据集, 测试用数据集
+    # return 验证用数据集
 
 
 class 数据集迭代器:
-    def __init__(self):
-        pass
+    def __init__(self, 数据集, 每批数量, 设备):
+        self.每批数量 = 每批数量
+        self.数据集 = 数据集
+        self.批数 = len(数据集) // 每批数量
+        self.是否有余数 = False  # 数据集%每批数量是否有余数
+        if len(数据集) % self.批数 != 0:
+            self.是否有余数 = True
+        self.索引 = 0
+        self.设备 = 设备
+
+    def _转成张量(self, 数据):
+        x = torch.LongTensor([_[0] for _ in 数据]).to(self.设备)
+        y = torch.LongTensor([_[1] for _ in 数据]).to(self.设备)
+
+        数据_数量 = torch.LongTensor([_[2] for _ in 数据]).to(self.设备)
+        掩码 = torch.LongTensor([_[3] for _ in 数据]).to(self.设备)
+
+        return x, 数据_数量, 掩码, y
+
+    def __next__(self):
+        if self.是否有余数 and self.索引 == self.批数:
+            数据集 = self.数据集[self.索引 * self.每批数量:len(self.数据集)]
+            self.索引 += 1
+            数据集 = self._转成张量(数据集)
+            return 数据集
+        elif self.索引 > self.批数:
+            self.索引 = 0
+            raise StopIteration
+        else:
+            数据集 = self.数据集[self.索引 * self.每批数量:(self.索引 + 1) * self.每批数量]
+            self.索引 += 1
+            数据集 = self._转成张量(数据集)
+            return 数据集
+
+    def __iter__(self):
+        return self
+
+    def __len__(self):
+        if self.是否有余数:
+            return self.批数 + 1
+        else:
+            return self.批数
 
 
 def 构建迭代器(数据集, 配置):
-    迭代器 = 数据集迭代器()
+    迭代器 = 数据集迭代器(数据集, 配置.每批数量, 配置.设备)
     return 迭代器
+
+
+def 获得时间偏移量(开始时间):
+    结束时间 = time.time()
+    时间偏移量 = 结束时间 - 开始时间
+    return timedelta(seconds=int(round(时间偏移量)))
