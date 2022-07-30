@@ -28,4 +28,4 @@ class 配置:
 class 模型(nn.Module):
     def __init__(self,配置):
         super(模型, self).__init__()
-        self.形变双向编码器表示法=
+        self.形变双向编码器表示法=从缓存中获取

@@ -26,7 +26,8 @@ except (AttributeError, ImportError):
                                   os.path.join(os.path.expanduser("~"), '.蟒蛇火炬_预训练_形变双向编码器表示法'))
 
 记录器 = logging.getLogger(__name__)
-
+配置文件名 = "config.json"
+权重文件名 = "pytorch_model.bin"
 
 def 网址转文件名(网址, 网络标签=None):
     网址_字节 = 网址.encode('utf-8')
