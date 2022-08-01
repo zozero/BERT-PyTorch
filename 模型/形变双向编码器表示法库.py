@@ -2,6 +2,7 @@ import torch
 from torch import nn
 
 from 蟒蛇火炬_预训练 import 形变双向编码器表示法的分词器
+from 蟒蛇火炬_预训练.模型类 import 形变双向编码器表示法的模型
 
 
 class 配置:
@@ -22,10 +23,10 @@ class 配置:
         self.学习率 = 5e-5
         self.形变双向编码器表示法_路径 = './形变双向编码器表示法_预训练模型'
         self.分词器 = 形变双向编码器表示法的分词器.从预训练开始(self.形变双向编码器表示法_路径)
-        self.单隐层的长度 = 768
+        self.隐藏层层数 = 768
 
 
 class 模型(nn.Module):
     def __init__(self,配置):
         super(模型, self).__init__()
-        self.形变双向编码器表示法=从缓存中获取
+        self.表示法模型=形变双向编码器表示法的模型.从预训练开始(配置.形变双向编码器表示法_路径)
