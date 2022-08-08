@@ -30,3 +30,9 @@ class 模型(nn.Module):
     def __init__(self,配置):
         super(模型, self).__init__()
         self.表示法模型=形变双向编码器表示法的模型.从预训练开始(配置.形变双向编码器表示法_路径)
+        for 参数 in self.表示法模型.parameters():
+            参数.requires_grad=True
+        self.全连接层=nn.Linear(配置.隐藏层层数,配置.类别数)
+
+    def forward(self,x):
+        .....

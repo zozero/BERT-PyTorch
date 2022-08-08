@@ -4,9 +4,11 @@ import logging
 import math
 import os.path
 import shutil
+import sys
 import tarfile
 import tempfile
 
+import numpy as np
 import torch
 from torch import nn
 
@@ -25,6 +27,22 @@ from .文件_多个工具 import 形成缓存路径, 配置文件名, 权重文�
 }
 模型的配置文件名 = 'bert_config.json'
 张量洪流_权重文件名 = 'model.ckpt'
+
+
+def 高斯误差线性单元(x):
+    return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
+
+
+def 嗖嗖(x):
+    """
+    因为为swish
+    这是一个激活函数
+    :return:
+    """
+    return x * torch.sigmoid(x)
+
+
+动作转函数 = {"高斯误差线性单元": 高斯误差线性单元, "嗖嗖": 嗖嗖}
 
 
 def 在模型中载入张量洪流权重(模型, 张量洪瑞_检查点路径):
@@ -98,9 +116,9 @@ class 模型的配置:
                  词汇数量或者简谱配置文件,
                  隐藏层层数=768,
                  隐藏层个数=12,
-                 关注点的头数=12,
-                 中间的数量=3072,
-                 隐藏层的动作='gelu',
+                 关注层的头数=12,
+                 中间层层数=3072,
+                 隐藏层的动作='高斯误差线性单元',
                  隐藏层失活率=0.1,
                  关注概率的失活率=0.1,
                  最大_位置_字向量层=512,
@@ -112,8 +130,8 @@ class 模型的配置:
         :param 词汇数量或者简谱配置文件: 简谱（json 爪哇脚本对象简谱）
         :param 隐藏层层数:
         :param 隐藏层个数:
-        :param 关注点的头数: 关注层的特征图数量，
-        :param 中间的数量:
+        :param 关注层的头数: 关注层的特征图数量，
+        :param 中间层层数:
         :param 隐藏层的动作:
         :param 隐藏层失活率:
         :param 关注概率的失活率:
@@ -125,8 +143,8 @@ class 模型的配置:
             self.词汇数量 = 词汇数量或者简谱配置文件
             self.隐藏层层数 = 隐藏层层数
             self.隐藏层个数 = 隐藏层个数
-            self.关注点的头数 = 关注点的头数
-            self.中间的数量 = 中间的数量
+            self.关注层的头数 = 关注层的头数
+            self.中间层层数 = 中间层层数
             self.隐藏层的动作 = 隐藏层的动作
             self.隐藏层失活率 = 隐藏层失活率
             self.关注概率的失活率 = 关注概率的失活率
@@ -170,9 +188,9 @@ except ImportError:
     记录器.info("apex能够实现更快的速度。可以从 https://www.github.com/nvidia/apex 安装")
 
 
-    class 模型的归一化层(nn.Module):
+    class 模型的层归一化(nn.Module):
         def __init__(self, 隐藏层层数, 艾普西龙=1e-12):
-            super(模型的归一化层, self).__init__()
+            super(模型的层归一化, self).__init__()
             self.权重 = nn.Parameter(torch.ones(隐藏层层数))
             self.偏置项 = nn.Parameter(torch.zeros(隐藏层层数))
             self.艾普西龙方差 = 艾普西龙
@@ -195,7 +213,7 @@ class 模型的多个字向量层(nn.Module):
         self.位置_字向量层 = nn.Embedding(配置.最大_位置_字向量层, 配置.隐藏层层数)
         self.字符_类型_字向量层 = nn.Embedding(配置.词汇类型数量, 配置.隐藏层层数)
 
-        self.归一化层 = 模型的归一化层(配置.隐藏层层数, 艾普西龙=1e-12)
+        self.归一化层 = 模型的层归一化(配置.隐藏层层数, 艾普西龙=1e-12)
         self.失活率 = nn.Dropout(配置.隐藏层失活率)
 
     def forward(self, 输入_标记张量, 字符_类型_标记张量=None):
@@ -216,9 +234,9 @@ class 模型的多个字向量层(nn.Module):
         return 多个字向量层
 
 
-class 模型的自身关注点(nn.Module):
+class 模型的自身关注层(nn.Module):
     """
-    关注点的头数：是指某一个字向量通过计算【软最大((查询的*被查的)/根号维度数)*特性信息】后得出的特征，这样的特征的数量，一般是8个
+    关注层的头数：是指某一个字向量通过计算【软最大((查询的*被查的)/根号维度数)*特性信息】后得出的特征，这样的特征的数量，一般是8个
         根号维度数：防止因维度越长导致结果越大
         软最大：softmax函数
         查询的：q
@@ -228,13 +246,13 @@ class 模型的自身关注点(nn.Module):
     """
 
     def __init__(self, 配置):
-        super(模型的自身关注点, self).__init__()
-        if 配置.隐藏层层数 % 配置.关注点的头数 != 0:
-            raise ValueError("隐藏层的层数（%d）不是关注点的头数的倍数（%d）" % (配置.隐藏层层数, 配置.关注点的头数))
-        self.关注点的头数 = 配置.关注点的头数
-        self.倍数 = int(配置.隐藏层层数 / 配置.关注点的头数)
+        super(模型的自身关注层, self).__init__()
+        if 配置.隐藏层层数 % 配置.关注层的头数 != 0:
+            raise ValueError("隐藏层的层数（%d）不是关注层的头数的倍数（%d）" % (配置.隐藏层层数, 配置.关注层的头数))
+        self.关注层的头数 = 配置.关注层的头数
+        self.倍数 = int(配置.隐藏层层数 / 配置.关注层的头数)
         # 如果倍数不是整数就直接报错了，所以这里其实就是隐藏层层数
-        self.总头数 = self.关注点的头数 * self.倍数
+        self.总头数 = self.关注层的头数 * self.倍数
 
         self.查询 = nn.Linear(配置.隐藏层层数, self.总头数)
         self.被查 = nn.Linear(配置.隐藏层层数, self.总头数)
@@ -243,12 +261,12 @@ class 模型的自身关注点(nn.Module):
         self.失活率 = nn.Dropout(配置.关注概率的失活率)
 
     def 改变分数张量的形状(self, x):
-        新x的形状 = x.size()[:-1] + (self.关注点的头数, self.倍数)
+        新x的形状 = x.size()[:-1] + (self.关注层的头数, self.倍数)
         x = x.view(*新x的形状)
         # permute：置换
         return x.permute(0, 2, 1, 3)
 
-    def forward(self, 隐藏层状态, 关注点掩码):
+    def forward(self, 隐藏层状态, 关注层掩码):
         混合_查询_层 = self.查询(隐藏层状态)
         混合_被查_层 = self.被查(隐藏层状态)
         混合_特征信息_层 = self.特征信息(隐藏层状态)
@@ -257,43 +275,126 @@ class 模型的自身关注点(nn.Module):
         被查_层 = self.改变分数张量的形状(混合_被查_层)
         特征信息_层 = self.改变分数张量的形状(混合_特征信息_层)
 
-        # 计算查询和被查之间的点积获得原生的关注点分数
+        # 计算查询和被查之间的点积获得原生的关注层分数
         # matmul：矩阵乘法
-        关注点分数 = torch.matmul(查询_层, 被查_层.transpose(-1, -2))
-        关注点分数 = 关注点分数 / math.sqrt(self.倍数)
+        关注层分数 = torch.matmul(查询_层, 被查_层.transpose(-1, -2))
+        关注层分数 = 关注层分数 / math.sqrt(self.倍数)
         # 应用注意掩码（为 形变双向编码器表示法的模型 forward() 函数中的所有层预先计算）？？？
-        关注点分数 = 关注点分数 + 关注点掩码
+        关注层分数 = 关注层分数 + 关注层掩码
 
         # 标准化关注分数为概率值
-        关注点概率 = nn.Softmax(dim=-1)(关注点分数)
+        关注层概率 = nn.Softmax(dim=-1)(关注层分数)
 
         # 这实际上是丢弃了整个字符来处理，这可能看起来有点不寻常，但取自原始的 Transformer 论文。？？？
-        关注点概率 = self.失活率(关注点概率)
+        关注层概率 = self.失活率(关注层概率)
 
-        语境_层 = torch.matmul(关注点概率, 特征信息_层)
+        语境_层 = torch.matmul(关注层概率, 特征信息_层)
         语境_层 = 语境_层.permute(0, 2, 1, 3).contiguous()
         新的_语境_层_形状 = 语境_层.size()[:-2] + (self.总头数,)
         语境_层 = 语境_层.view(*新的_语境_层_形状)
         return 语境_层
 
 
-class 模型的关注点(nn.Module):
+class 模型自身关注层的输出(nn.Module):
     def __init__(self, 配置):
-        super(模型的关注点, self).__init__()
-        self.自身关注点 = 模型的自身关注点(配置)
-        。。。
+        super(模型自身关注层的输出, self).__init__()
+        self.稠密层 = nn.Linear(配置.隐藏层层数, 配置.隐藏层层数)  # 全连接层
+        self.层归一化 = 模型的层归一化(配置.隐藏层层数, 艾普西龙=1e-12)
+        self.失活率 = nn.Dropout(配置.隐藏层失活率)
+
+    def forward(self, 隐藏层状态, 输入的张量):
+        隐藏层状态 = self.稠密层(隐藏层状态)
+        隐藏层状态 = self.失活率(隐藏层状态)
+        隐藏层状态 = self.层归一化(隐藏层状态 + 输入的张量)
+
+        return 隐藏层状态
+
+
+class 模型的关注层(nn.Module):
+    def __init__(self, 配置):
+        super(模型的关注层, self).__init__()
+        self.自身 = 模型的自身关注层(配置)
+        self.输出 = 模型自身关注层的输出(配置)
+
+    def forward(self, 输入的张量, 关注层掩码):
+        自身_输出 = self.自身关注层(输入的张量, 关注层掩码)
+        关注_输出 = self.输出(自身_输出, 输入的张量)
+        return 关注_输出
+
+
+class 模型的中间层(nn.Module):
+    def __init__(self, 配置):
+        super(模型的中间层, self).__init__()
+        self.稠密层 = nn.Linear(配置.隐藏层层数, 配置.中间层层数)  # 全连接层
+        if isinstance(配置.隐藏层的动作, str):
+            self.中间层_动作_函数 = 动作转函数[配置.隐藏层的动作]
+        else:
+            self.中间层_动作_函数 = 配置.隐藏层的动作
+
+    def forward(self, 隐藏层状态):
+        隐藏层状态 = self.稠密层(隐藏层状态)
+        隐藏层状态 = self.中间层_动作_函数(隐藏层状态)
+        return 隐藏层状态
+
+
+class 模型的输出层(nn.Module):
+    def __init__(self, 配置):
+        super(模型的输出层, self).__init__()
+        self.稠密层 = nn.Linear(配置.中间层层数, 配置.隐藏层层数)  # 全连接层
+        self.层归一化 = 模型的层归一化(配置.隐藏层层数, 艾普西龙=1e-12)
+        self.失活率 = nn.Dropout(配置.隐藏层失活率)
+
+    def forward(self, 隐藏层状态, 输入的张量):
+        隐藏层状态 = self.稠密层(隐藏层状态)
+        隐藏层状态 = self.失活率(隐藏层状态)
+        隐藏层状态 = self.层归一化(隐藏层状态 + 输入的张量)
+
+        return 隐藏层状态
 
 
 class 模型的层(nn.Module):
     def __init__(self, 配置):
         super(模型的层, self).__init__()
-        self.关注点 = 模型的关注点(配置)
+        self.关注层 = 模型的关注层(配置)
+        self.中间层 = 模型的中间层(配置)
+        self.输出层 = 模型的输出层(配置)
+
+    def forward(self, 隐藏层状态, 关注层掩码):
+        关注层_输出 = self.关注层(隐藏层状态, 关注层掩码)
+        中间层_输出 = self.中间层(关注层_输出)
+        层_输出 = self.输出层(中间层_输出, 关注层_输出)
+        return 层_输出
 
 
 class 模型的编码器(nn.Module):
     def __init__(self, 配置):
         super(模型的编码器, self).__init__()
         层 = 模型的层(配置)
+        self.层 = nn.ModuleList([copy.deepcopy(层) for _ in range(配置.隐藏层层数)])
+
+    def forward(self, 隐藏层状态, 关注层掩码, 是否输出全部已编码的层=True):
+        全部编码层 = []
+        for 层_模块 in self.层:
+            隐藏层状态 = 层_模块(隐藏层状态, 关注层掩码)
+            if 是否输出全部已编码的层:
+                全部编码层.append(隐藏层状态)
+        if not 是否输出全部已编码的层:
+            全部编码层.append(隐藏层状态)
+        return 全部编码层
+
+
+class 模型的池化层(nn.Module):
+    def __init__(self, 配置):
+        super(模型的池化层, self).__init__()
+        self.稠密层 = nn.Linear(配置.中间层层数, 配置.隐藏层层数)  # 全连接层
+        self.激活函数 = nn.Tanh()
+
+    def forward(self, 隐藏状态):
+        第一个_字符_张量 = 隐藏状态[:, 0]
+        已池化的输出 = self.稠密层(第一个_字符_张量)
+        已池化的输出 = self.激活函数(已池化的输出)
+
+        return 已池化的输出
 
 
 class 模型的预训练模型(nn.Module):
@@ -313,7 +414,7 @@ class 模型的预训练模型(nn.Module):
     def 初始化模型的权重(self, 模块):
         if isinstance(模块, (nn.Linear, nn.Embedding)):
             模块.weight.data.normal_(mean=0.0, std=self.配置.初始化_范围)
-        elif isinstance(模块, 模型的归一化层):
+        elif isinstance(模块, 模型的层归一化):
             模块.偏置项.data.zero_()
             模块.权重.data.fill_(1.0)
         if isinstance(模块, nn.Linear) and 模块.bias is not None:
@@ -425,3 +526,26 @@ class 形变双向编码器表示法的模型(模型的预训练模型):
         super(形变双向编码器表示法的模型, self).__init__(配置)
         self.多个字向量层 = 模型的多个字向量层(配置)
         self.编码器 = 模型的编码器(配置)
+        self.池化层 = 模型的池化层(配置)
+        self.apply(self.初始化模型的权重)
+
+    def forward(self, 输入的标记, 字符_类别_标记=None, 关注层_掩码=None, 是否输出全部已编码的层=True):
+        if 关注层_掩码 is None:
+            关注层_掩码 = torch.ones_like(输入的标记)
+        if 字符_类别_标记 is None:
+            字符_类别_标记 = torch.zeros_like(输入的标记)
+
+        扩展的关注层掩码 = 关注层_掩码.unique(1).unsqueeze(2)
+
+        扩展的关注层掩码 = 扩展的关注层掩码.to(dtype=next(self.parameters()).dtype)
+        扩展的关注层掩码 = (1.0 - 扩展的关注层掩码) * -10000.0
+
+        字向量层输出 = self.多个字向量层(输入的标记, 字符_类别_标记)
+        print(np.array(字向量层输出.data.cpu().numpy()).shape)
+        已编码的层 = self.编码器(字向量层输出, 扩展的关注层掩码, 是否输出全部已编码的层=是否输出全部已编码的层)
+        序列化的输出 = 已编码的层[-1]
+        print(np.array(序列化的输出.data.cpu().numpy()).shape)
+        已池化的输出 = self.池化层(序列化的输出)
+        if not 是否输出全部已编码的层:
+            字向量层输出 = 已编码的层[-1]
+        return 字向量层输出, 已池化的输出
