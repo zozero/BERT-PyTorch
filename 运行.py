@@ -6,6 +6,7 @@ import numpy as np
 import torch
 
 from 多个工具 import 构建数据集, 构建迭代器, 获得时间偏移量
+from 训练和评估 import 训练
 
 解析 = argparse.ArgumentParser(description='中文文本分类')
 解析.add_argument('--模型', type=str, required=True, help='选择一个模型：形变双向编码器表示法库，文心大模型类')
@@ -35,3 +36,4 @@ if __name__ == '__main__':
     print("花费的时间：", 时间偏移量)
 
     模型 = x.模型(配置).to(配置.设备)  # 形变双向编码器表示法库文件的模型类
+    训练(配置,模型)

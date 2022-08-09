@@ -12,7 +12,6 @@ import numpy as np
 import torch
 from torch import nn
 
-from 模型 import 形变双向编码器表示法库
 from .文件_多个工具 import 形成缓存路径, 配置文件名, 权重文件名
 
 记录器 = logging.getLogger(__name__)
@@ -35,7 +34,7 @@ def 高斯误差线性单元(x):
 
 def 嗖嗖(x):
     """
-    因为为swish
+    英文为swish
     这是一个激活函数
     :return:
     """
