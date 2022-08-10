@@ -1,6 +1,7 @@
 import argparse
 import time
 from importlib import import_module
+from collections import OrderedDict
 
 import numpy as np
 import torch
@@ -35,40 +36,43 @@ def 缩减数据集(读取行数=512):
 
 def 修改预训练的模型():
     """
-    路径_字典 = torch.load(路径.模型目录())
-        状态_字典 = self.state_dict()
-        for 名称 in 路径_字典:
-            if 名称 not in 对应名称:
-                continue
-            状态_字典[对应名称[名称]] = 路径_字典
-        self.load_state_dict(状态_字典)
+    为了适配中文命名，重新生成状态字典
+    预训练中文模型：    该文件是由原预训练模型打印键值后，复制到文本文件中，使用编辑器一一对应替换掉原先的字符
     :return:
     """
-    修改后的模型 = None
-    列表 = []
+    中文模型列表 = None
+    with open('预训练中文模型', 'r', encoding='utf8') as 文件:
+        中文模型列表 = 文件.readlines()
+        文件.close()
+
+    修改后的模型 = OrderedDict()
     预训练的模型 = torch.load("形变双向编码器表示法_预训练模型/火炬_模型.bin")
 
-    for i in 预训练的模型:
-        print(i)
+    for i, j in zip(预训练的模型, 中文模型列表):
+        修改后的模型[j.strip('\n')] = 预训练的模型[i]
 
+    # 元数据不匹配。。。。。。
+    # 元数据 = getattr(预训练的模型, '_metadata', None)
+    # 修改后的模型._metadata = 元数据
+    torch.save(修改后的模型, '形变双向编码器表示法_预训练模型/火炬_中文_模型.bin')
     # print(预训练的模型)
     exit()
 
-
-def 载入自定义的模型():
-    数据集 = '清华中文文本分类工具包'
-    模型名 = 复数参数.模型
-    x = import_module('模型.' + 模型名)
-    配置 = x.配置(数据集)
-    模型 = 形变双向编码器表示法的模型(配置)
-    print(模型.state_dict())
+def 加载修改后的模型():
+    """
+    用于查看是否成功替换
+    :return:
+    """
+    预训练的模型 = torch.load("形变双向编码器表示法_预训练模型/火炬_中文_模型.bin")
+    for i in 预训练的模型:
+        print(i)
     exit()
-
 
 if __name__ == '__main__':
     # 缩减数据集()
-    # 载入自定义的模型()
     # 修改预训练的模型()
+    # 加载修改后的模型()
+
     数据集 = '清华中文文本分类工具包'
 
     模型名 = 复数参数.模型

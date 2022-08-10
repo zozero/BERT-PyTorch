@@ -25,10 +25,10 @@ from .文件_多个工具 import 形成缓存路径, 配置文件名, 权重文�
     '基础-汉语': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-chinese-vocab.txt"
 }
 模型的配置文件名 = '配置.json'
-张量洪流_权重文件名 = 'model.ckpt'
+张量洪流_权重文件名 = '模型.ckpt'
 
 
-def 在模型中载入张量洪流权重(模型, 张量洪瑞_检查点路径):
+def 在模型中载入张量洪流权重(模型, 张量洪流_检查点路径):
     try:
         import re
         import numpy as np
@@ -37,7 +37,7 @@ def 在模型中载入张量洪流权重(模型, 张量洪瑞_检查点路径):
         print("需要在蟒蛇火炬项目中载入张量洪流，张量洪流需要安装，请查看 https://www.tensorflow.org/install/ 的安装介绍")
         raise
 
-    张量洪流_路径 = os.path.abspath(张量洪瑞_检查点路径)
+    张量洪流_路径 = os.path.abspath(张量洪流_检查点路径)
     print("正在从{}中载入张量洪流载入点".format(张量洪流_路径))
     初始变量 = tf.train.list_variables(张量洪流_路径)
     名称列表 = []
@@ -187,7 +187,7 @@ class 模型的配置:
 
 
 try:
-    from apex.normalization.fused_layer_norm import FusedLayerNorm as 模型的模型归一化层
+    from apex.normalization.fused_layer_norm import FusedLayerNorm as 模型的层归一化
 except ImportError:
     记录器.info("apex能够实现更快的速度。可以从 https://www.github.com/nvidia/apex 安装")
 
@@ -206,23 +206,23 @@ except ImportError:
             return self.权重 * x + self.偏置项
 
 
-class 模型的多个字向量层(nn.Module):
+class 模型的字向量层(nn.Module):
     """
     字向量层：使用中文以汉字为单位；embedding是嵌入的意思，本质是一个词向量，描述词的一串数字
     """
 
     def __init__(self, 配置):
-        super(模型的多个字向量层, self).__init__()
+        super(模型的字向量层, self).__init__()
         self.字_字向量层 = nn.Embedding(配置.词汇数量, 配置.隐藏层大小, padding_idx=0)
         self.位置_字向量层 = nn.Embedding(配置.最大_位置_字向量层, 配置.隐藏层大小)
         self.字符_类型_字向量层 = nn.Embedding(配置.词汇类型数量, 配置.隐藏层大小)
 
-        self.归一化层 = 模型的层归一化(配置.隐藏层大小, 艾普西龙=1e-12)
+        self.层归一化 = 模型的层归一化(配置.隐藏层大小, 艾普西龙=1e-12)
         self.失活率 = nn.Dropout(配置.隐藏层失活率)
 
     def forward(self, 输入_标记张量, 字符_类型_标记张量=None):
         序列长度 = 输入_标记张量.size(1)
-        位置_标记张量 = torch.arange(序列长度, dtype=torch.long, device=输入_标记张量.设备)
+        位置_标记张量 = torch.arange(序列长度, dtype=torch.long, device=输入_标记张量.device)
         位置_标记张量 = 位置_标记张量.unsqueeze(0).expand_as(输入_标记张量)
         if 字符_类型_标记张量 is None:
             字符_类型_标记张量 = torch.zeros_like(输入_标记张量)
@@ -231,11 +231,11 @@ class 模型的多个字向量层(nn.Module):
         位置_字向量层 = self.位置_字向量层(位置_标记张量)
         字符_类型_字向量层 = self.字符_类型_字向量层(字符_类型_标记张量)
 
-        多个字向量层 = 字_字向量层 + 位置_字向量层 + 字符_类型_字向量层
-        多个字向量层 = self.归一化层(多个字向量层)
-        多个字向量层 = self.失活率(多个字向量层)
+        字向量层 = 字_字向量层 + 位置_字向量层 + 字符_类型_字向量层
+        字向量层 = self.层归一化(字向量层)
+        字向量层 = self.失活率(字向量层)
 
-        return 多个字向量层
+        return 字向量层
 
 
 class 模型的自身关注层(nn.Module):
@@ -321,7 +321,7 @@ class 模型的关注层(nn.Module):
         self.输出 = 模型自身关注层的输出(配置)
 
     def forward(self, 输入的张量, 关注层掩码):
-        自身_输出 = self.自身关注层(输入的张量, 关注层掩码)
+        自身_输出 = self.自身(输入的张量, 关注层掩码)
         关注_输出 = self.输出(自身_输出, 输入的张量)
         return 关注_输出
 
@@ -390,7 +390,7 @@ class 模型的编码器(nn.Module):
 class 模型的池化层(nn.Module):
     def __init__(self, 配置):
         super(模型的池化层, self).__init__()
-        self.稠密层 = nn.Linear(配置.中间层层数, 配置.隐藏层大小)  # 全连接层
+        self.稠密层 = nn.Linear(配置.隐藏层大小, 配置.隐藏层大小)  # 全连接层
         self.激活函数 = nn.Tanh()
 
     def forward(self, 隐藏状态):
@@ -473,25 +473,78 @@ class 模型的预训练模型(nn.Module):
         配置 = 模型的配置.从简谱获取配置(配置文件)
         记录器.info("模型配置{}".format(配置))
         模型 = cls(配置, *输入列表, **参数字典)
+        # for i in 模型.state_dict():
+        #     print(i)
         if 状态字典 is None and not 来自_张量洪流:
             权重路径 = os.path.join(序列化_目录, 权重文件名)
             状态字典 = torch.load(权重路径, map_location='cpu')
         if 临时目录:
             shutil.rmtree(临时目录)
         if 来自_张量洪流:
+            # 测试时可能没有用到该函数，所以里面的代码暂时未匹配模型
             权重路径 = os.path.join(序列化_目录, 张量洪流_权重文件名)
             return 在模型中载入张量洪流权重(模型, 权重路径)
         # 从蟒蛇火炬状态字典载入
         旧键值列表 = []
         新键值列表 = []
 
+        # 可以通过这更换相应的字符，但好多阿
         for 键值 in 状态字典.keys():
-            新键值 = None
-            if '伽马' in 键值:
-                新键值 = 键值.replace('伽马', '权重')
-            if '贝塔' in 键值:
-                新键值 = 键值.replace('贝塔', '偏置项')
-            if 新键值:
+            新键值 = 键值
+            if 'gamma' in 键值:
+                新键值 = 键值.replace('gamma', 'weight')
+            if 'beta' in 键值:
+                新键值 = 键值.replace('beta', 'bias')
+
+            # 存在问题。。。。。。。，需要修改部分偏置项和权重
+            # if 'bert' in 新键值:
+            #     新键值 = 新键值.replace('bert', '表示法模型')
+            # if 'embeddings' in 新键值:
+            #     新键值 = 新键值.replace('embeddings', '字向量层')
+            # if 'word' in 新键值:
+            #     新键值 = 新键值.replace('word', '字')
+            # if 'position' in 新键值:
+            #     新键值 = 新键值.replace('position', '位置')
+            # if 'token_type' in 新键值:
+            #     新键值 = 新键值.replace('token_type', '字符_类型')
+            # # 为了防止提前替换LayerNorm，得把它提到Layer之前
+            # if 'LayerNorm' in 新键值:
+            #     新键值 = 新键值.replace('LayerNorm', '层归一化')
+            # if 'Layer' in 新键值:
+            #     新键值 = 新键值.replace('Layer', '层')
+            # if 'encoder' in 新键值:
+            #     新键值 = 新键值.replace('encoder', '编码器')
+            # if 'attention' in 新键值:
+            #     新键值 = 新键值.replace('attention', '关注层')
+            # if 'self' in 新键值:
+            #     新键值 = 新键值.replace('self', '自身')
+            # if 'query' in 新键值:
+            #     新键值 = 新键值.replace('query', '查询')
+            # if 'key' in 新键值:
+            #     新键值 = 新键值.replace('key', '被查')
+            # if 'value' in 新键值:
+            #     新键值 = 新键值.replace('value', '特征信息')
+            # if 'output' in 新键值:
+            #     新键值 = 新键值.replace('output', '输出层')
+            # if 'dense' in 新键值:
+            #     新键值 = 新键值.replace('dense', '稠密层')
+            # if 'intermediate' in 新键值:
+            #     新键值 = 新键值.replace('intermediate', '中间层')
+            # if 'pooler' in 新键值:
+            #     新键值 = 新键值.replace('pooler', '池化层')
+            # 以下暂没用到到
+            # if 'cls' in 新键值:
+            #     新键值 = 新键值.replace('cls', '类别')
+            # if 'predictions' in 新键值:
+            #     新键值 = 新键值.replace('predictions', '预测层')
+            # if 'transform' in 新键值:
+            #     新键值 = 新键值.replace('transform', '外变层')
+            # if 'decoder' in 新键值:
+            #     新键值 = 新键值.replace('decoder', '解码器')
+            # if 'seq_relationship' in 新键值:
+            #     新键值 = 新键值.replace('seq_relationship', '序列_关系层')
+
+            if 新键值 and 新键值 != 键值:
                 旧键值列表.append(键值)
                 新键值列表.append(新键值)
         for 旧键值, 新键值 in zip(旧键值列表, 新键值列表):
@@ -501,10 +554,10 @@ class 模型的预训练模型(nn.Module):
         未预料的键值列表 = []
         错误消息列表 = []
         # 拷贝状态字典，以便通过_load_from_state_dict调整它
-        元数据 = getattr(状态字典, '_元数据', None)
+        元数据 = getattr(状态字典, '_metadata', None)
         状态字典 = 状态字典.copy()
         if 元数据 is not None:
-            状态字典._元数据 = 元数据
+            状态字典._metadata = 元数据
 
         def 载入(模块, 前缀=''):
             局部元数据 = {} if 元数据 is None else 元数据.get(前缀[:-1], {})
@@ -514,8 +567,8 @@ class 模型的预训练模型(nn.Module):
                     载入(子级, 前缀 + 名称 + '.')
 
         起始前缀 = ''
-        if not hasattr(模型, '模型的模型') and any(s.starwitch('模型的模型.') for s in 状态字典.keys()):
-            起始前缀 = '模型的模型.'
+        if not hasattr(模型, '表示法模型') and any(s.startswith('表示法模型.') for s in 状态字典.keys()):
+            起始前缀 = '表示法模型.'
         载入(模型, 前缀=起始前缀)
         if len(失踪的键值列表) > 0:
             记录器.info("从预训练模型{}不能初始化{}的权重".format(失踪的键值列表, 模型.__class__.__name__))
@@ -529,11 +582,10 @@ class 模型的预训练模型(nn.Module):
 class 形变双向编码器表示法的模型(模型的预训练模型):
     def __init__(self, 配置):
         super(形变双向编码器表示法的模型, self).__init__(配置)
-        self.多个字向量层 = 模型的多个字向量层(配置)
+        self.字向量层 = 模型的字向量层(配置)
         self.编码器 = 模型的编码器(配置)
         self.池化层 = 模型的池化层(配置)
         self.apply(self.初始化模型的权重)
-
 
     def forward(self, 输入的标记, 字符_类别_标记=None, 关注层_掩码=None, 是否输出全部已编码的层=True):
         if 关注层_掩码 is None:
@@ -541,12 +593,12 @@ class 形变双向编码器表示法的模型(模型的预训练模型):
         if 字符_类别_标记 is None:
             字符_类别_标记 = torch.zeros_like(输入的标记)
 
-        扩展的关注层掩码 = 关注层_掩码.unique(1).unsqueeze(2)
+        扩展的关注层掩码 = 关注层_掩码.unsqueeze(1).unsqueeze(2)
 
         扩展的关注层掩码 = 扩展的关注层掩码.to(dtype=next(self.parameters()).dtype)
         扩展的关注层掩码 = (1.0 - 扩展的关注层掩码) * -10000.0
 
-        字向量层输出 = self.多个字向量层(输入的标记, 字符_类别_标记)
+        字向量层输出 = self.字向量层(输入的标记, 字符_类别_标记)
         print(np.array(字向量层输出.data.cpu().numpy()).shape)
         已编码的层 = self.编码器(字向量层输出, 扩展的关注层掩码, 是否输出全部已编码的层=是否输出全部已编码的层)
         序列化的输出 = 已编码的层[-1]

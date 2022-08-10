@@ -27,7 +27,7 @@ except (AttributeError, ImportError):
 
 记录器 = logging.getLogger(__name__)
 配置文件名 = "配置.json"
-权重文件名 = "火炬_模型.bin"
+权重文件名 = "火炬_中文_模型.bin"
 
 
 def 网址转文件名(网址, 网络标签=None):
