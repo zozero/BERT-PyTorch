@@ -59,7 +59,7 @@ class 数据集迭代器:
         数据_数量 = torch.LongTensor([_[2] for _ in 数据]).to(self.设备)
         掩码 = torch.LongTensor([_[3] for _ in 数据]).to(self.设备)
 
-        return x, 数据_数量, 掩码, y
+        return (x, 数据_数量, 掩码), y
 
     def __next__(self):
         if self.是否有余数 and self.索引 == self.批数:

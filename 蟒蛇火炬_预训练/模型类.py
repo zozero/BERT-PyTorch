@@ -24,24 +24,8 @@ from .文件_多个工具 import 形成缓存路径, 配置文件名, 权重文�
     '基础-多语言的-分大小写': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-multilingual-cased-vocab.txt",
     '基础-汉语': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-chinese-vocab.txt"
 }
-模型的配置文件名 = 'bert_config.json'
+模型的配置文件名 = '配置.json'
 张量洪流_权重文件名 = 'model.ckpt'
-
-
-def 高斯误差线性单元(x):
-    return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
-
-
-def 嗖嗖(x):
-    """
-    英文为swish
-    这是一个激活函数
-    :return:
-    """
-    return x * torch.sigmoid(x)
-
-
-动作转函数 = {"高斯误差线性单元": 高斯误差线性单元, "嗖嗖": 嗖嗖}
 
 
 def 在模型中载入张量洪流权重(模型, 张量洪瑞_检查点路径):
@@ -106,6 +90,22 @@ def 在模型中载入张量洪流权重(模型, 张量洪瑞_检查点路径):
     return 模型
 
 
+def 高斯误差线性单元(x):
+    return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
+
+
+def 嗖嗖(x):
+    """
+    英文为swish
+    这是一个激活函数
+    :return:
+    """
+    return x * torch.sigmoid(x)
+
+
+动作转函数 = {"高斯误差线性单元": 高斯误差线性单元, "嗖嗖": 嗖嗖}
+
+
 class 模型的配置:
     """
     模型的模型的配置信息收录
@@ -113,7 +113,7 @@ class 模型的配置:
 
     def __init__(self,
                  词汇数量或者简谱配置文件,
-                 隐藏层层数=768,
+                 隐藏层大小=768,
                  隐藏层个数=12,
                  关注层的头数=12,
                  中间层层数=3072,
@@ -127,7 +127,7 @@ class 模型的配置:
         """
 
         :param 词汇数量或者简谱配置文件: 简谱（json 爪哇脚本对象简谱）
-        :param 隐藏层层数:
+        :param 隐藏层大小:
         :param 隐藏层个数:
         :param 关注层的头数: 关注层的特征图数量，
         :param 中间层层数:
@@ -138,9 +138,14 @@ class 模型的配置:
         :param 词汇类型数量:
         :param 初始化_范围:
         """
-        if isinstance(词汇数量或者简谱配置文件, int):
+        if isinstance(词汇数量或者简谱配置文件, str):
+            with open(词汇数量或者简谱配置文件, 'r', encoding='utf-8') as 读者:
+                简谱_配置 = json.loads(读者.read())
+                for 键, 值 in 简谱_配置.items():
+                    self.__dict__[键] = 值
+        elif isinstance(词汇数量或者简谱配置文件, int):
             self.词汇数量 = 词汇数量或者简谱配置文件
-            self.隐藏层层数 = 隐藏层层数
+            self.隐藏层大小 = 隐藏层大小
             self.隐藏层个数 = 隐藏层个数
             self.关注层的头数 = 关注层的头数
             self.中间层层数 = 中间层层数
@@ -167,14 +172,14 @@ class 模型的配置:
         return cls.从字典获取配置(json.loads(文本))
 
     def __repr__(self):
-        return str(self.转成简谱字符串)
+        return str(self.转成简谱字符串())
 
     def 转成字典(self):
         输出 = copy.deepcopy(self.__dict__)
         return 输出
 
     def 转成简谱字符串(self):
-        return json.dumps(self.转成字典, indent=2, sort_keys=True) + '\n'
+        return json.dumps(self.转成字典(), indent=2, sort_keys=True) + '\n'
 
     def 转成简谱文件(self, 简谱文件路径):
         with open(简谱文件路径, 'w', encoding='utf-8') as 作者:
@@ -188,10 +193,10 @@ except ImportError:
 
 
     class 模型的层归一化(nn.Module):
-        def __init__(self, 隐藏层层数, 艾普西龙=1e-12):
+        def __init__(self, 隐藏层大小, 艾普西龙=1e-12):
             super(模型的层归一化, self).__init__()
-            self.权重 = nn.Parameter(torch.ones(隐藏层层数))
-            self.偏置项 = nn.Parameter(torch.zeros(隐藏层层数))
+            self.权重 = nn.Parameter(torch.ones(隐藏层大小))
+            self.偏置项 = nn.Parameter(torch.zeros(隐藏层大小))
             self.艾普西龙方差 = 艾普西龙
 
         def forward(self, x):
@@ -208,11 +213,11 @@ class 模型的多个字向量层(nn.Module):
 
     def __init__(self, 配置):
         super(模型的多个字向量层, self).__init__()
-        self.字_字向量层 = nn.Embedding(配置.词汇数量, 配置.隐藏层层数, padding_idx=0)
-        self.位置_字向量层 = nn.Embedding(配置.最大_位置_字向量层, 配置.隐藏层层数)
-        self.字符_类型_字向量层 = nn.Embedding(配置.词汇类型数量, 配置.隐藏层层数)
+        self.字_字向量层 = nn.Embedding(配置.词汇数量, 配置.隐藏层大小, padding_idx=0)
+        self.位置_字向量层 = nn.Embedding(配置.最大_位置_字向量层, 配置.隐藏层大小)
+        self.字符_类型_字向量层 = nn.Embedding(配置.词汇类型数量, 配置.隐藏层大小)
 
-        self.归一化层 = 模型的层归一化(配置.隐藏层层数, 艾普西龙=1e-12)
+        self.归一化层 = 模型的层归一化(配置.隐藏层大小, 艾普西龙=1e-12)
         self.失活率 = nn.Dropout(配置.隐藏层失活率)
 
     def forward(self, 输入_标记张量, 字符_类型_标记张量=None):
@@ -246,16 +251,16 @@ class 模型的自身关注层(nn.Module):
 
     def __init__(self, 配置):
         super(模型的自身关注层, self).__init__()
-        if 配置.隐藏层层数 % 配置.关注层的头数 != 0:
-            raise ValueError("隐藏层的层数（%d）不是关注层的头数的倍数（%d）" % (配置.隐藏层层数, 配置.关注层的头数))
+        if 配置.隐藏层大小 % 配置.关注层的头数 != 0:
+            raise ValueError("隐藏层的层数（%d）不是关注层的头数的倍数（%d）" % (配置.隐藏层大小, 配置.关注层的头数))
         self.关注层的头数 = 配置.关注层的头数
-        self.倍数 = int(配置.隐藏层层数 / 配置.关注层的头数)
-        # 如果倍数不是整数就直接报错了，所以这里其实就是隐藏层层数
+        self.倍数 = int(配置.隐藏层大小 / 配置.关注层的头数)
+        # 如果倍数不是整数就直接报错了，所以这里其实就是隐藏层大小
         self.总头数 = self.关注层的头数 * self.倍数
 
-        self.查询 = nn.Linear(配置.隐藏层层数, self.总头数)
-        self.被查 = nn.Linear(配置.隐藏层层数, self.总头数)
-        self.特征信息 = nn.Linear(配置.隐藏层层数, self.总头数)
+        self.查询 = nn.Linear(配置.隐藏层大小, self.总头数)
+        self.被查 = nn.Linear(配置.隐藏层大小, self.总头数)
+        self.特征信息 = nn.Linear(配置.隐藏层大小, self.总头数)
 
         self.失活率 = nn.Dropout(配置.关注概率的失活率)
 
@@ -297,8 +302,8 @@ class 模型的自身关注层(nn.Module):
 class 模型自身关注层的输出(nn.Module):
     def __init__(self, 配置):
         super(模型自身关注层的输出, self).__init__()
-        self.稠密层 = nn.Linear(配置.隐藏层层数, 配置.隐藏层层数)  # 全连接层
-        self.层归一化 = 模型的层归一化(配置.隐藏层层数, 艾普西龙=1e-12)
+        self.稠密层 = nn.Linear(配置.隐藏层大小, 配置.隐藏层大小)  # 全连接层
+        self.层归一化 = 模型的层归一化(配置.隐藏层大小, 艾普西龙=1e-12)
         self.失活率 = nn.Dropout(配置.隐藏层失活率)
 
     def forward(self, 隐藏层状态, 输入的张量):
@@ -324,7 +329,7 @@ class 模型的关注层(nn.Module):
 class 模型的中间层(nn.Module):
     def __init__(self, 配置):
         super(模型的中间层, self).__init__()
-        self.稠密层 = nn.Linear(配置.隐藏层层数, 配置.中间层层数)  # 全连接层
+        self.稠密层 = nn.Linear(配置.隐藏层大小, 配置.中间层层数)  # 全连接层
         if isinstance(配置.隐藏层的动作, str):
             self.中间层_动作_函数 = 动作转函数[配置.隐藏层的动作]
         else:
@@ -339,8 +344,8 @@ class 模型的中间层(nn.Module):
 class 模型的输出层(nn.Module):
     def __init__(self, 配置):
         super(模型的输出层, self).__init__()
-        self.稠密层 = nn.Linear(配置.中间层层数, 配置.隐藏层层数)  # 全连接层
-        self.层归一化 = 模型的层归一化(配置.隐藏层层数, 艾普西龙=1e-12)
+        self.稠密层 = nn.Linear(配置.中间层层数, 配置.隐藏层大小)  # 全连接层
+        self.层归一化 = 模型的层归一化(配置.隐藏层大小, 艾普西龙=1e-12)
         self.失活率 = nn.Dropout(配置.隐藏层失活率)
 
     def forward(self, 隐藏层状态, 输入的张量):
@@ -369,7 +374,7 @@ class 模型的编码器(nn.Module):
     def __init__(self, 配置):
         super(模型的编码器, self).__init__()
         层 = 模型的层(配置)
-        self.层 = nn.ModuleList([copy.deepcopy(层) for _ in range(配置.隐藏层层数)])
+        self.层 = nn.ModuleList([copy.deepcopy(层) for _ in range(配置.隐藏层个数)])
 
     def forward(self, 隐藏层状态, 关注层掩码, 是否输出全部已编码的层=True):
         全部编码层 = []
@@ -385,7 +390,7 @@ class 模型的编码器(nn.Module):
 class 模型的池化层(nn.Module):
     def __init__(self, 配置):
         super(模型的池化层, self).__init__()
-        self.稠密层 = nn.Linear(配置.中间层层数, 配置.隐藏层层数)  # 全连接层
+        self.稠密层 = nn.Linear(配置.中间层层数, 配置.隐藏层大小)  # 全连接层
         self.激活函数 = nn.Tanh()
 
     def forward(self, 隐藏状态):
@@ -433,7 +438,7 @@ class 模型的预训练模型(nn.Module):
         参数字典.pop('状态字典', None)
         缓存目录 = 参数字典.get('缓存目录', None)
         参数字典.pop('缓存目录', None)
-        来自_张量洪流 = 参数字典.get('来自_张量洪流', None)
+        来自_张量洪流 = 参数字典.get('来自_张量洪流', False)
         参数字典.pop('来自_张量洪流', None)
 
         if 预训练模型名或路径 in 预训练词汇档案映射:
@@ -466,7 +471,7 @@ class 模型的预训练模型(nn.Module):
         if not os.path.exists(配置文件):
             配置文件 = os.path.join(序列化_目录, 模型的配置文件名)
         配置 = 模型的配置.从简谱获取配置(配置文件)
-        记录器.info("模型配置{}".format(配置文件))
+        记录器.info("模型配置{}".format(配置))
         模型 = cls(配置, *输入列表, **参数字典)
         if 状态字典 is None and not 来自_张量洪流:
             权重路径 = os.path.join(序列化_目录, 权重文件名)
@@ -479,6 +484,7 @@ class 模型的预训练模型(nn.Module):
         # 从蟒蛇火炬状态字典载入
         旧键值列表 = []
         新键值列表 = []
+
         for 键值 in 状态字典.keys():
             新键值 = None
             if '伽马' in 键值:
@@ -527,6 +533,7 @@ class 形变双向编码器表示法的模型(模型的预训练模型):
         self.编码器 = 模型的编码器(配置)
         self.池化层 = 模型的池化层(配置)
         self.apply(self.初始化模型的权重)
+
 
     def forward(self, 输入的标记, 字符_类别_标记=None, 关注层_掩码=None, 是否输出全部已编码的层=True):
         if 关注层_掩码 is None:

@@ -23,7 +23,7 @@ class 配置:
         self.学习率 = 5e-5
         self.形变双向编码器表示法_路径 = './形变双向编码器表示法_预训练模型'
         self.分词器 = 形变双向编码器表示法的分词器.从预训练开始(self.形变双向编码器表示法_路径)
-        self.隐藏层层数 = 768
+        self.隐藏层大小 = 768
 
 
 class 模型(nn.Module):
@@ -32,7 +32,7 @@ class 模型(nn.Module):
         self.表示法模型 = 形变双向编码器表示法的模型.从预训练开始(配置.形变双向编码器表示法_路径)
         for 参数 in self.表示法模型.parameters():
             参数.requires_grad = True
-        self.全连接层 = nn.Linear(配置.隐藏层层数, 配置.类别数)
+        self.全连接层 = nn.Linear(配置.隐藏层大小, 配置.类别数)
 
     def forward(self, x):
         语境 = x[0]
