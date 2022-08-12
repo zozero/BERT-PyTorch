@@ -60,11 +60,11 @@ def 在模型中载入张量洪流权重(模型, 张量洪流_检查点路径):
             else:
                 l = [模型名]
             if l[0] == '核心' or l[0] == '伽马':
-                指针 = getattr(指针, '权重')
+                指针 = getattr(指针, 'weight')
             elif l[0] == '输出_偏置项' or l[0] == '贝塔':
-                指针 = getattr(指针, '偏置项')
+                指针 = getattr(指针, 'bias')
             elif l[0] == '输出_权重':
-                指针 = getattr(指针, '权重')
+                指针 = getattr(指针, 'weight')
             elif l[0] == '斯坦福问答回答数据集':  # squad
                 指针 = getattr(指针, '分类器')
             else:
@@ -77,7 +77,7 @@ def 在模型中载入张量洪流权重(模型, 张量洪流_检查点路径):
                 数字 = int(l[1])
                 指针 = 指针[数字]
         if 模型名[-11:] == '_字向量层':
-            指针 = getattr(指针, '权重')
+            指针 = getattr(指针, 'weight')
         elif 模型名 == '核心':
             数组 = np.transpose(数组)
         try:
@@ -103,7 +103,7 @@ def 嗖嗖(x):
     return x * torch.sigmoid(x)
 
 
-动作转函数 = {"高斯误差线性单元": 高斯误差线性单元, "嗖嗖": 嗖嗖}
+动作转函数 = {"高斯误差线性单元": 高斯误差线性单元,"整流线性单元":torch.nn.functional.relu, "嗖嗖": 嗖嗖}
 
 
 class 模型的配置:
@@ -116,7 +116,7 @@ class 模型的配置:
                  隐藏层大小=768,
                  隐藏层个数=12,
                  关注层的头数=12,
-                 中间层层数=3072,
+                 中间层大小=3072,
                  隐藏层的动作='高斯误差线性单元',
                  隐藏层失活率=0.1,
                  关注概率的失活率=0.1,
@@ -130,7 +130,7 @@ class 模型的配置:
         :param 隐藏层大小:
         :param 隐藏层个数:
         :param 关注层的头数: 关注层的特征图数量，
-        :param 中间层层数:
+        :param 中间层大小:
         :param 隐藏层的动作:
         :param 隐藏层失活率:
         :param 关注概率的失活率:
@@ -148,7 +148,7 @@ class 模型的配置:
             self.隐藏层大小 = 隐藏层大小
             self.隐藏层个数 = 隐藏层个数
             self.关注层的头数 = 关注层的头数
-            self.中间层层数 = 中间层层数
+            self.中间层大小 = 中间层大小
             self.隐藏层的动作 = 隐藏层的动作
             self.隐藏层失活率 = 隐藏层失活率
             self.关注概率的失活率 = 关注概率的失活率
@@ -187,7 +187,7 @@ class 模型的配置:
 
 
 try:
-    from apex.normalization.fused_layer_norm import FusedLayerNorm as 模型的层归一化
+    from apex.normalization.fused_layer_norm import FusedLayerNzorm as 模型的层归一化
 except ImportError:
     记录器.info("apex能够实现更快的速度。可以从 https://www.github.com/nvidia/apex 安装")
 
@@ -195,15 +195,15 @@ except ImportError:
     class 模型的层归一化(nn.Module):
         def __init__(self, 隐藏层大小, 艾普西龙=1e-12):
             super(模型的层归一化, self).__init__()
-            self.权重 = nn.Parameter(torch.ones(隐藏层大小))
-            self.偏置项 = nn.Parameter(torch.zeros(隐藏层大小))
+            self.weight = nn.Parameter(torch.ones(隐藏层大小))
+            self.bias = nn.Parameter(torch.zeros(隐藏层大小))
             self.艾普西龙方差 = 艾普西龙
 
         def forward(self, x):
             u = x.mean(-1, keepdim=True)
             s = (x - u).pow(2).mean(-1, keepdim=True)
             X = (x - u) / torch.sqrt(s + self.艾普西龙方差)
-            return self.权重 * x + self.偏置项
+            return self.weight * x + self.bias
 
 
 class 模型的字向量层(nn.Module):
@@ -252,7 +252,7 @@ class 模型的自身关注层(nn.Module):
     def __init__(self, 配置):
         super(模型的自身关注层, self).__init__()
         if 配置.隐藏层大小 % 配置.关注层的头数 != 0:
-            raise ValueError("隐藏层的层数（%d）不是关注层的头数的倍数（%d）" % (配置.隐藏层大小, 配置.关注层的头数))
+            raise ValueError("隐藏层的大小（%d）不是关注层的头数的倍数（%d）" % (配置.隐藏层大小, 配置.关注层的头数))
         self.关注层的头数 = 配置.关注层的头数
         self.倍数 = int(配置.隐藏层大小 / 配置.关注层的头数)
         # 如果倍数不是整数就直接报错了，所以这里其实就是隐藏层大小
@@ -329,7 +329,7 @@ class 模型的关注层(nn.Module):
 class 模型的中间层(nn.Module):
     def __init__(self, 配置):
         super(模型的中间层, self).__init__()
-        self.稠密层 = nn.Linear(配置.隐藏层大小, 配置.中间层层数)  # 全连接层
+        self.稠密层 = nn.Linear(配置.隐藏层大小, 配置.中间层大小)  # 全连接层
         if isinstance(配置.隐藏层的动作, str):
             self.中间层_动作_函数 = 动作转函数[配置.隐藏层的动作]
         else:
@@ -344,7 +344,7 @@ class 模型的中间层(nn.Module):
 class 模型的输出层(nn.Module):
     def __init__(self, 配置):
         super(模型的输出层, self).__init__()
-        self.稠密层 = nn.Linear(配置.中间层层数, 配置.隐藏层大小)  # 全连接层
+        self.稠密层 = nn.Linear(配置.中间层大小, 配置.隐藏层大小)  # 全连接层
         self.层归一化 = 模型的层归一化(配置.隐藏层大小, 艾普西龙=1e-12)
         self.失活率 = nn.Dropout(配置.隐藏层失活率)
 
@@ -393,8 +393,8 @@ class 模型的池化层(nn.Module):
         self.稠密层 = nn.Linear(配置.隐藏层大小, 配置.隐藏层大小)  # 全连接层
         self.激活函数 = nn.Tanh()
 
-    def forward(self, 隐藏状态):
-        第一个_字符_张量 = 隐藏状态[:, 0]
+    def forward(self, 隐藏层状态):
+        第一个_字符_张量 = 隐藏层状态[:, 0]
         已池化的输出 = self.稠密层(第一个_字符_张量)
         已池化的输出 = self.激活函数(已池化的输出)
 
@@ -419,8 +419,8 @@ class 模型的预训练模型(nn.Module):
         if isinstance(模块, (nn.Linear, nn.Embedding)):
             模块.weight.data.normal_(mean=0.0, std=self.配置.初始化_范围)
         elif isinstance(模块, 模型的层归一化):
-            模块.偏置项.data.zero_()
-            模块.权重.data.fill_(1.0)
+            模块.bias.data.zero_()
+            模块.weight.data.fill_(1.0)
         if isinstance(模块, nn.Linear) and 模块.bias is not None:
             模块.bias.data.zero_()
 
@@ -544,7 +544,7 @@ class 模型的预训练模型(nn.Module):
             # if 'seq_relationship' in 新键值:
             #     新键值 = 新键值.replace('seq_relationship', '序列_关系层')
 
-            if 新键值 and 新键值 != 键值:
+            if 新键值:
                 旧键值列表.append(键值)
                 新键值列表.append(新键值)
         for 旧键值, 新键值 in zip(旧键值列表, 新键值列表):
@@ -599,11 +599,11 @@ class 形变双向编码器表示法的模型(模型的预训练模型):
         扩展的关注层掩码 = (1.0 - 扩展的关注层掩码) * -10000.0
 
         字向量层输出 = self.字向量层(输入的标记, 字符_类别_标记)
-        print(np.array(字向量层输出.data.cpu().numpy()).shape)
+        # print(np.array(字向量层输出.data.cpu().numpy()).shape)
         已编码的层 = self.编码器(字向量层输出, 扩展的关注层掩码, 是否输出全部已编码的层=是否输出全部已编码的层)
         序列化的输出 = 已编码的层[-1]
-        print(np.array(序列化的输出.data.cpu().numpy()).shape)
+        # print(np.array(序列化的输出.data.cpu().numpy()).shape)
         已池化的输出 = self.池化层(序列化的输出)
         if not 是否输出全部已编码的层:
-            字向量层输出 = 已编码的层[-1]
-        return 字向量层输出, 已池化的输出
+            已编码的层 = 已编码的层[-1]
+        return 已编码的层, 已池化的输出

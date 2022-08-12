@@ -7,8 +7,7 @@ import numpy as np
 import torch
 
 from 多个工具 import 构建数据集, 构建迭代器, 获得时间偏移量
-from 蟒蛇火炬_预训练.模型类 import 形变双向编码器表示法的模型
-from 训练和评估 import 训练
+from 训练和评估 import 训练模型
 
 解析 = argparse.ArgumentParser(description='中文文本分类')
 解析.add_argument('--模型', type=str, required=True, help='选择一个模型：形变双向编码器表示法库，文心大模型类')
@@ -37,7 +36,7 @@ def 缩减数据集(读取行数=512):
 def 修改预训练的模型():
     """
     为了适配中文命名，重新生成状态字典
-    预训练中文模型：    该文件是由原预训练模型打印键值后，复制到文本文件中，使用编辑器一一对应替换掉原先的字符
+    预训练中文模型： 该文件可以载入模型后使用模型的方法state_dict【模型.state_dict()】，使用for打印输出
     :return:
     """
     中文模型列表 = None
@@ -51,22 +50,28 @@ def 修改预训练的模型():
     for i, j in zip(预训练的模型, 中文模型列表):
         修改后的模型[j.strip('\n')] = 预训练的模型[i]
 
-    # 元数据不匹配。。。。。。
+    # 元数据信息不匹配。。。。。。
     # 元数据 = getattr(预训练的模型, '_metadata', None)
     # 修改后的模型._metadata = 元数据
     torch.save(修改后的模型, '形变双向编码器表示法_预训练模型/火炬_中文_模型.bin')
     # print(预训练的模型)
     exit()
 
+
 def 加载修改后的模型():
     """
     用于查看是否成功替换
     :return:
     """
-    预训练的模型 = torch.load("形变双向编码器表示法_预训练模型/火炬_中文_模型.bin")
+    # 预训练的模型 = torch.load("形变双向编码器表示法_预训练模型/火炬_中文_模型.bin")
+    预训练的模型 = torch.load("形变双向编码器表示法_预训练模型/火炬_模型.bin")
+    # 元数据 = getattr(预训练的模型, '_metadata', None)
+    # print(元数据)
     for i in 预训练的模型:
-        print(i)
+        print(预训练的模型[i])
+        break
     exit()
+
 
 if __name__ == '__main__':
     # 缩减数据集()
@@ -96,4 +101,7 @@ if __name__ == '__main__':
     print("花费的时间：", 时间偏移量)
 
     模型 = x.模型(配置).to(配置.设备)  # 形变双向编码器表示法库文件的模型类
-    训练(配置, 模型, 训练用迭代器, 验证用迭代器, 测试用迭代器)
+    # for i in 模型.state_dict():
+    #     print(i)
+    # exit()
+    训练模型(配置, 模型, 训练用迭代器, 验证用迭代器, 测试用迭代器)

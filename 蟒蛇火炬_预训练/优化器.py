@@ -3,8 +3,10 @@ import logging
 import math
 import sys
 
+import torch
 from torch.optim import Optimizer
 from torch.optim.optimizer import required
+from torch.nn.utils import clip_grad_norm_
 
 记录器 = logging.getLogger(__name__)
 
@@ -106,8 +108,59 @@ class 模型的自适应动量估计(Optimizer):
         else:
             if 预热 != -1 or 训练_总数 != -1:
                 记录器.warning("在_学习率_进度表作为进度表提供时，优化器的预热和训练_总数是无效的。请在_学习率_进度表对象中指定自定义的预热和训练_总数")
-        默认字典 = dict(学习率=学习率, 进度表=进度表, b1=b1, b2=b2, 艾普西龙=艾普西龙, 权重_衰减=权重_衰减, 最大_梯度_范数=最大_梯度_范数)
+        默认字典 = dict(lr=学习率, schedule=进度表, b1=b1, b2=b2, e=艾普西龙, weight_decay=权重_衰减, max_grad_norm=最大_梯度_范数)
         super(模型的自适应动量估计, self).__init__(参数列表, 默认字典)
 
-    def step(self,closure=None):
-        ....
+    def 获得_学习率(self):
+        学习率 = []
+        for 组 in self.param_groups:
+            for p in 组['params']:
+                阶段 = self.state[p]
+                if len(阶段) == 0:
+                    return [0]
+                学习率_进度表 = 组['lr']
+                学习率_进度表 *= 组['schedule'].get_lr(阶段['step'])
+                学习率.append(学习率_进度表)
+        return 学习率
+
+    def step(self, closure=None):
+        损失值 = None
+        if closure is not None:
+            损失值 = closure()
+
+        for 组 in self.param_groups:
+            for p in 组['params']:
+                if p.grad is None:
+                    continue
+                梯度 = p.grad.data
+                if 梯度.is_sparse:
+                    raise RuntimeError("自适应动量估计不支持稀疏梯度，请考虑使用（稀疏自适应动量估计）替换")
+
+                阶段 = self.state[p]
+                if len(阶段) == 0:
+                    阶段['step'] = 0
+                    阶段['next_m'] = torch.zeros_like(p.data)
+                    阶段['next_v'] = torch.zeros_like(p.data)
+
+                next_m, next_v = 阶段['next_m'], 阶段['next_v']  # 暂时取名
+                贝塔1, 贝塔2 = 组['b1'], 组['b2']
+
+                if 组['max_grad_norm'] > 0:
+                    clip_grad_norm_(p, 组['max_grad_norm'])
+
+                next_m.mul_(贝塔1).add_(1 - 贝塔1, 梯度)
+                next_v.mul_(贝塔2).addcmul_(1 - 贝塔2, 梯度, 梯度)
+                更新 = next_m / (next_v.sqrt() + 组['e'])
+
+                if 组['weight_decay'] > 0.0:
+                    更新 += 组['weight_decay'] * p.data
+
+                学习率_进度表 = 组['lr']
+                学习率_进度表 *= 组['schedule'].获得_学习率(阶段['step'])
+
+                更新_随着_学习率 = 学习率_进度表 * 更新
+                p.data.add_(-更新_随着_学习率)
+
+                阶段['step'] += 1
+
+        return 损失值
