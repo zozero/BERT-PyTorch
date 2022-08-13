@@ -148,8 +148,8 @@ class 模型的自适应动量估计(Optimizer):
                 if 组['max_grad_norm'] > 0:
                     clip_grad_norm_(p, 组['max_grad_norm'])
 
-                next_m.mul_(贝塔1).add_(1 - 贝塔1, 梯度)
-                next_v.mul_(贝塔2).addcmul_(1 - 贝塔2, 梯度, 梯度)
+                next_m.mul_(贝塔1).add_(梯度, alpha=1 - 贝塔1)
+                next_v.mul_(贝塔2).addcmul_(梯度, 梯度, value=1 - 贝塔2)
                 更新 = next_m / (next_v.sqrt() + 组['e'])
 
                 if 组['weight_decay'] > 0.0:

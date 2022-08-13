@@ -202,7 +202,7 @@ except ImportError:
         def forward(self, x):
             u = x.mean(-1, keepdim=True)
             s = (x - u).pow(2).mean(-1, keepdim=True)
-            X = (x - u) / torch.sqrt(s + self.艾普西龙方差)
+            x = (x - u) / torch.sqrt(s + self.艾普西龙方差)
             return self.weight * x + self.bias
 
 
