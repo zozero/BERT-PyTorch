@@ -10,7 +10,7 @@ from 多个工具 import 构建数据集, 构建迭代器, 获得时间偏移量
 from 训练和评估 import 训练模型
 
 解析 = argparse.ArgumentParser(description='中文文本分类')
-解析.add_argument('--模型', type=str, required=True, help='选择一个模型：形变双向编码器表示法库，文心大模型类')
+解析.add_argument('--模型', type=str, required=True, help='选择一个模型：外变双向编码器表示法库-')
 复数参数 = 解析.parse_args()
 
 
@@ -36,16 +36,16 @@ def 缩减数据集(读取行数=512):
 def 修改预训练的模型():
     """
     为了适配中文命名，重新生成状态字典
-    预训练中文模型： 该文件可以载入模型后使用模型的方法state_dict【模型.state_dict()】，使用for打印输出
+    预训练中文模型.txt： 该文件可以载入模型后使用模型的方法state_dict【模型.state_dict()】，使用for打印输出
     :return:
     """
     中文模型列表 = None
-    with open('预训练中文模型', 'r', encoding='utf8') as 文件:
+    with open('预训练中文模型.txt', 'r', encoding='utf8') as 文件:
         中文模型列表 = 文件.readlines()
         文件.close()
 
     修改后的模型 = OrderedDict()
-    预训练的模型 = torch.load("形变双向编码器表示法_预训练模型/火炬_模型.bin")
+    预训练的模型 = torch.load("预训练的模型/火炬_模型.bin")
 
     for i, j in zip(预训练的模型, 中文模型列表):
         修改后的模型[j.strip('\n')] = 预训练的模型[i]
@@ -53,7 +53,7 @@ def 修改预训练的模型():
     # 元数据信息不匹配。。。。。。，也暂时不需要
     # 元数据 = getattr(预训练的模型, '_metadata', None)
     # 修改后的模型._metadata = 元数据
-    torch.save(修改后的模型, '形变双向编码器表示法_预训练模型/火炬_中文_模型.bin')
+    torch.save(修改后的模型, '预训练的模型/火炬_中文_模型.bin')
     # print(预训练的模型)
     exit()
 
@@ -63,8 +63,8 @@ def 加载修改后的模型():
     用于查看是否成功替换
     :return:
     """
-    # 预训练的模型 = torch.load("形变双向编码器表示法_预训练模型/火炬_中文_模型.bin")
-    预训练的模型 = torch.load("形变双向编码器表示法_预训练模型/火炬_模型.bin")
+    # 预训练的模型 = torch.load("预训练的模型/火炬_中文_模型.bin")
+    预训练的模型 = torch.load("预训练的模型/火炬_模型.bin")
     # 元数据 = getattr(预训练的模型, '_metadata', None)
     # print(元数据)
     for i in 预训练的模型:
@@ -78,12 +78,13 @@ if __name__ == '__main__':
     # 修改预训练的模型()
     # 加载修改后的模型()
 
-    # 需要添加参数 --模型 形变双向编码器表示法库
+    # 需要添加参数 --模型 外变双向编码器表示法库
     数据集 = '清华中文文本分类工具包'
 
     模型名 = 复数参数.模型
-    x = import_module('模型.' + 模型名)
-    配置 = x.配置(数据集)
+    # 导入模块，它了整个文件，取名叫模组，之所叫模组是因为文件包含了配置和模型
+    模组 = import_module('模型.' + 模型名)
+    配置 = 模组.配置(数据集)
     np.random.seed(1)
     torch.manual_seed(1)
     torch.cuda.manual_seed_all(1)
@@ -101,7 +102,7 @@ if __name__ == '__main__':
     时间偏移量 = 获得时间偏移量(开始时间)
     print("花费的时间：", 时间偏移量)
 
-    模型 = x.模型(配置).to(配置.设备)  # 形变双向编码器表示法库文件的模型类
+    模型 = 模组.模型(配置).to(配置.设备)  # 外变双向编码器表示法库文件的模型类
     # for i in 模型.state_dict():
     #     print(i)
     # exit()

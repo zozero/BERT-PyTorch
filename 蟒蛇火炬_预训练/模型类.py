@@ -12,7 +12,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from .文件_多个工具 import 形成缓存路径, 配置文件名, 权重文件名
+from .配置的变量 import 配置文件名, 权重文件名
 
 记录器 = logging.getLogger(__name__)
 预训练词汇档案映射 = {
@@ -115,11 +115,11 @@ class 模型的配置:
                  词汇数量或者简谱配置文件,
                  隐藏层大小=768,
                  隐藏层个数=12,
-                 关注层的头数=12,
+                 注意层的头数=12,
                  中间层大小=3072,
                  隐藏层的动作='高斯误差线性单元',
                  隐藏层失活率=0.1,
-                 关注概率的失活率=0.1,
+                 注意概率的失活率=0.1,
                  最大_位置_字向量层=512,
                  词汇类型数量=2,
                  初始化_范围=0.02
@@ -129,11 +129,11 @@ class 模型的配置:
         :param 词汇数量或者简谱配置文件: 简谱（json 爪哇脚本对象简谱）
         :param 隐藏层大小:
         :param 隐藏层个数:
-        :param 关注层的头数: 关注层的特征图数量，
+        :param 注意层的头数: 注意层的特征图数量，
         :param 中间层大小:
         :param 隐藏层的动作:
         :param 隐藏层失活率:
-        :param 关注概率的失活率:
+        :param 注意概率的失活率:
         :param 最大_位置_字向量层:
         :param 词汇类型数量:
         :param 初始化_范围:
@@ -147,11 +147,11 @@ class 模型的配置:
             self.词汇数量 = 词汇数量或者简谱配置文件
             self.隐藏层大小 = 隐藏层大小
             self.隐藏层个数 = 隐藏层个数
-            self.关注层的头数 = 关注层的头数
+            self.注意层的头数 = 注意层的头数
             self.中间层大小 = 中间层大小
             self.隐藏层的动作 = 隐藏层的动作
             self.隐藏层失活率 = 隐藏层失活率
-            self.关注概率的失活率 = 关注概率的失活率
+            self.注意概率的失活率 = 注意概率的失活率
             self.最大_位置_字向量层 = 最大_位置_字向量层
             self.词汇类型数量 = 词汇类型数量
             self.初始化_范围 = 初始化_范围
@@ -186,24 +186,18 @@ class 模型的配置:
             作者.write(self.转成简谱字符串())
 
 
-try:
-    from apex.normalization.fused_layer_norm import FusedLayerNzorm as 模型的层归一化
-except ImportError:
-    记录器.info("apex能够实现更快的速度。可以从 https://www.github.com/nvidia/apex 安装")
+class 模型的层归一化(nn.Module):
+    def __init__(self, 隐藏层大小, 艾普西龙=1e-12):
+        super(模型的层归一化, self).__init__()
+        self.weight = nn.Parameter(torch.ones(隐藏层大小))
+        self.bias = nn.Parameter(torch.zeros(隐藏层大小))
+        self.艾普西龙方差 = 艾普西龙
 
-
-    class 模型的层归一化(nn.Module):
-        def __init__(self, 隐藏层大小, 艾普西龙=1e-12):
-            super(模型的层归一化, self).__init__()
-            self.weight = nn.Parameter(torch.ones(隐藏层大小))
-            self.bias = nn.Parameter(torch.zeros(隐藏层大小))
-            self.艾普西龙方差 = 艾普西龙
-
-        def forward(self, x):
-            u = x.mean(-1, keepdim=True)
-            s = (x - u).pow(2).mean(-1, keepdim=True)
-            x = (x - u) / torch.sqrt(s + self.艾普西龙方差)
-            return self.weight * x + self.bias
+    def forward(self, x):
+        u = x.mean(-1, keepdim=True)
+        s = (x - u).pow(2).mean(-1, keepdim=True)
+        x = (x - u) / torch.sqrt(s + self.艾普西龙方差)
+        return self.weight * x + self.bias
 
 
 class 模型的字向量层(nn.Module):
@@ -238,9 +232,9 @@ class 模型的字向量层(nn.Module):
         return 字向量层
 
 
-class 模型的自身关注层(nn.Module):
+class 模型的注意自身层(nn.Module):
     """
-    关注层的头数：是指某一个字向量通过计算【软最大((查询的*被查的)/根号维度数)*特性信息】后得出的特征，这样的特征的数量，一般是8个
+    注意层的头数：是指某一个字向量通过计算【软最大((查询的*被查的)/根号维度数)*特性信息】后得出的特征，这样的特征的数量，一般是8个
         根号维度数：防止因维度越长导致结果越大
         软最大：softmax函数
         查询的：q
@@ -250,27 +244,27 @@ class 模型的自身关注层(nn.Module):
     """
 
     def __init__(self, 配置):
-        super(模型的自身关注层, self).__init__()
-        if 配置.隐藏层大小 % 配置.关注层的头数 != 0:
-            raise ValueError("隐藏层的大小（%d）不是关注层的头数的倍数（%d）" % (配置.隐藏层大小, 配置.关注层的头数))
-        self.关注层的头数 = 配置.关注层的头数
-        self.倍数 = int(配置.隐藏层大小 / 配置.关注层的头数)
+        super(模型的注意自身层, self).__init__()
+        if 配置.隐藏层大小 % 配置.注意层的头数 != 0:
+            raise ValueError("隐藏层的大小（%d）不是注意层的头数的倍数（%d）" % (配置.隐藏层大小, 配置.注意层的头数))
+        self.注意层的头数 = 配置.注意层的头数
+        self.倍数 = int(配置.隐藏层大小 / 配置.注意层的头数)
         # 如果倍数不是整数就直接报错了，所以这里其实就是隐藏层大小
-        self.总头数 = self.关注层的头数 * self.倍数
+        self.总头数 = self.注意层的头数 * self.倍数
 
         self.查询 = nn.Linear(配置.隐藏层大小, self.总头数)
         self.被查 = nn.Linear(配置.隐藏层大小, self.总头数)
         self.特征信息 = nn.Linear(配置.隐藏层大小, self.总头数)
 
-        self.失活率 = nn.Dropout(配置.关注概率的失活率)
+        self.失活率 = nn.Dropout(配置.注意概率的失活率)
 
     def 改变分数张量的形状(self, x):
-        新x的形状 = x.size()[:-1] + (self.关注层的头数, self.倍数)
+        新x的形状 = x.size()[:-1] + (self.注意层的头数, self.倍数)
         x = x.view(*新x的形状)
         # permute：置换
         return x.permute(0, 2, 1, 3)
 
-    def forward(self, 隐藏层状态, 关注层掩码):
+    def forward(self, 隐藏层状态, 注意层掩码):
         混合_查询_层 = self.查询(隐藏层状态)
         混合_被查_层 = self.被查(隐藏层状态)
         混合_特征信息_层 = self.特征信息(隐藏层状态)
@@ -279,29 +273,29 @@ class 模型的自身关注层(nn.Module):
         被查_层 = self.改变分数张量的形状(混合_被查_层)
         特征信息_层 = self.改变分数张量的形状(混合_特征信息_层)
 
-        # 计算查询和被查之间的点积获得原生的关注层分数
+        # 计算查询和被查之间的点积获得原生的注意层分数
         # matmul：矩阵乘法
-        关注层分数 = torch.matmul(查询_层, 被查_层.transpose(-1, -2))
-        关注层分数 = 关注层分数 / math.sqrt(self.倍数)
-        # 应用注意掩码（为 形变双向编码器表示法的模型 forward() 函数中的所有层预先计算）？？？
-        关注层分数 = 关注层分数 + 关注层掩码
+        注意层分数 = torch.matmul(查询_层, 被查_层.transpose(-1, -2))
+        注意层分数 = 注意层分数 / math.sqrt(self.倍数)
+        # 应用注意掩码（为 外变双向编码器表示法的模型 forward() 函数中的所有层预先计算）？？？
+        注意层分数 = 注意层分数 + 注意层掩码
 
-        # 标准化关注分数为概率值
-        关注层概率 = nn.Softmax(dim=-1)(关注层分数)
+        # 标准化注意分数为概率值
+        注意层概率 = nn.Softmax(dim=-1)(注意层分数)
 
         # 这实际上是丢弃了整个字符来处理，这可能看起来有点不寻常，但取自原始的 Transformer 论文。？？？
-        关注层概率 = self.失活率(关注层概率)
+        注意层概率 = self.失活率(注意层概率)
 
-        语境_层 = torch.matmul(关注层概率, 特征信息_层)
+        语境_层 = torch.matmul(注意层概率, 特征信息_层)
         语境_层 = 语境_层.permute(0, 2, 1, 3).contiguous()
         新的_语境_层_形状 = 语境_层.size()[:-2] + (self.总头数,)
         语境_层 = 语境_层.view(*新的_语境_层_形状)
         return 语境_层
 
 
-class 模型自身关注层的输出(nn.Module):
+class 模型注意自身层的输出(nn.Module):
     def __init__(self, 配置):
-        super(模型自身关注层的输出, self).__init__()
+        super(模型注意自身层的输出, self).__init__()
         self.稠密层 = nn.Linear(配置.隐藏层大小, 配置.隐藏层大小)  # 全连接层
         self.层归一化 = 模型的层归一化(配置.隐藏层大小, 艾普西龙=1e-12)
         self.失活率 = nn.Dropout(配置.隐藏层失活率)
@@ -314,16 +308,16 @@ class 模型自身关注层的输出(nn.Module):
         return 隐藏层状态
 
 
-class 模型的关注层(nn.Module):
+class 模型的注意层(nn.Module):
     def __init__(self, 配置):
-        super(模型的关注层, self).__init__()
-        self.自身 = 模型的自身关注层(配置)
-        self.输出 = 模型自身关注层的输出(配置)
+        super(模型的注意层, self).__init__()
+        self.自身 = 模型的注意自身层(配置)
+        self.输出 = 模型注意自身层的输出(配置)
 
-    def forward(self, 输入的张量, 关注层掩码):
-        自身_输出 = self.自身(输入的张量, 关注层掩码)
-        关注_输出 = self.输出(自身_输出, 输入的张量)
-        return 关注_输出
+    def forward(self, 输入的张量, 注意层掩码):
+        自身_输出 = self.自身(输入的张量, 注意层掩码)
+        注意_输出 = self.输出(自身_输出, 输入的张量)
+        return 注意_输出
 
 
 class 模型的中间层(nn.Module):
@@ -359,14 +353,14 @@ class 模型的输出层(nn.Module):
 class 模型的层(nn.Module):
     def __init__(self, 配置):
         super(模型的层, self).__init__()
-        self.关注层 = 模型的关注层(配置)
+        self.注意层 = 模型的注意层(配置)
         self.中间层 = 模型的中间层(配置)
         self.输出层 = 模型的输出层(配置)
 
-    def forward(self, 隐藏层状态, 关注层掩码):
-        关注层_输出 = self.关注层(隐藏层状态, 关注层掩码)
-        中间层_输出 = self.中间层(关注层_输出)
-        层_输出 = self.输出层(中间层_输出, 关注层_输出)
+    def forward(self, 隐藏层状态, 注意层掩码):
+        注意层_输出 = self.注意层(隐藏层状态, 注意层掩码)
+        中间层_输出 = self.中间层(注意层_输出)
+        层_输出 = self.输出层(中间层_输出, 注意层_输出)
         return 层_输出
 
 
@@ -376,10 +370,10 @@ class 模型的编码器(nn.Module):
         层 = 模型的层(配置)
         self.层 = nn.ModuleList([copy.deepcopy(层) for _ in range(配置.隐藏层个数)])
 
-    def forward(self, 隐藏层状态, 关注层掩码, 是否输出全部已编码的层=True):
+    def forward(self, 隐藏层状态, 注意层掩码, 是否输出全部已编码的层=True):
         全部编码层 = []
         for 层_模块 in self.层:
-            隐藏层状态 = 层_模块(隐藏层状态, 关注层掩码)
+            隐藏层状态 = 层_模块(隐藏层状态, 注意层掩码)
             if 是否输出全部已编码的层:
                 全部编码层.append(隐藏层状态)
         if not 是否输出全部已编码的层:
@@ -436,8 +430,6 @@ class 模型的预训练模型(nn.Module):
 
         状态字典 = 参数字典.get('状态字典', None)
         参数字典.pop('状态字典', None)
-        缓存目录 = 参数字典.get('缓存目录', None)
-        参数字典.pop('缓存目录', None)
         来自_张量洪流 = 参数字典.get('来自_张量洪流', False)
         参数字典.pop('来自_张量洪流', None)
 
@@ -446,24 +438,15 @@ class 模型的预训练模型(nn.Module):
         else:
             档案文件 = 预训练模型名或路径
 
-        try:
-            解析的档案文件 = 形成缓存路径(档案文件, 缓存_目录=缓存目录)
-        except EnvironmentError:
-            记录器.error("在模型列表中（{}）没有找到模型名‘{}’。"
-                      "我们假设路径或网址是‘{}’，但不能找到如何与这个路径或网址相关联的文件"
-                      .format(预训练模型名或路径, ','.join(预训练词汇档案映射.keys()), 档案文件))
-            return None
-        if 解析的档案文件 == 档案文件:
-            记录器.info("正在载入档案文件{}".format(档案文件))
-        else:
-            记录器.info("正在从{}缓存中载入档案文件{}".format(解析的档案文件, 档案文件))
+        记录器.info("正在载入档案文件{}".format(档案文件))
+
         临时目录 = None
-        if os.path.isdir(解析的档案文件) or 来自_张量洪流:
-            序列化_目录 = 解析的档案文件
+        if os.path.isdir(档案文件) or 来自_张量洪流:
+            序列化_目录 = 档案文件
         else:
             临时目录 = tempfile.mkdtemp()
-            记录器.info("正在从临时目录{}中提取档案文件{}".format(临时目录, 解析的档案文件))
-            with tarfile.open(解析的档案文件, 'r:gz') as 档案:
+            记录器.info("正在从临时目录{}中提取档案文件{}".format(临时目录, 档案文件))
+            with tarfile.open(档案文件, 'r:gz') as 档案:
                 档案.extractall(临时目录)
             序列化_目录 = 临时目录
 
@@ -515,7 +498,7 @@ class 模型的预训练模型(nn.Module):
             # if 'encoder' in 新键值:
             #     新键值 = 新键值.replace('encoder', '编码器')
             # if 'attention' in 新键值:
-            #     新键值 = 新键值.replace('attention', '关注层')
+            #     新键值 = 新键值.replace('attention', '注意层')
             # if 'self' in 新键值:
             #     新键值 = 新键值.replace('self', '自身')
             # if 'query' in 新键值:
@@ -579,28 +562,31 @@ class 模型的预训练模型(nn.Module):
         return 模型
 
 
-class 形变双向编码器表示法的模型(模型的预训练模型):
+class 外变双向编码器表示法的模型(模型的预训练模型):
+    """
+    我将
+    """
     def __init__(self, 配置):
-        super(形变双向编码器表示法的模型, self).__init__(配置)
+        super(外变双向编码器表示法的模型, self).__init__(配置)
         self.字向量层 = 模型的字向量层(配置)
         self.编码器 = 模型的编码器(配置)
         self.池化层 = 模型的池化层(配置)
         self.apply(self.初始化模型的权重)
 
-    def forward(self, 输入的标记, 字符_类别_标记=None, 关注层_掩码=None, 是否输出全部已编码的层=True):
-        if 关注层_掩码 is None:
-            关注层_掩码 = torch.ones_like(输入的标记)
+    def forward(self, 输入的标记, 字符_类别_标记=None, 注意层_掩码=None, 是否输出全部已编码的层=True):
+        if 注意层_掩码 is None:
+            注意层_掩码 = torch.ones_like(输入的标记)
         if 字符_类别_标记 is None:
             字符_类别_标记 = torch.zeros_like(输入的标记)
 
-        扩展的关注层掩码 = 关注层_掩码.unsqueeze(1).unsqueeze(2)
+        扩展的注意层掩码 = 注意层_掩码.unsqueeze(1).unsqueeze(2)
 
-        扩展的关注层掩码 = 扩展的关注层掩码.to(dtype=next(self.parameters()).dtype)
-        扩展的关注层掩码 = (1.0 - 扩展的关注层掩码) * -10000.0
+        扩展的注意层掩码 = 扩展的注意层掩码.to(dtype=next(self.parameters()).dtype)
+        扩展的注意层掩码 = (1.0 - 扩展的注意层掩码) * -10000.0
 
         字向量层输出 = self.字向量层(输入的标记, 字符_类别_标记)
         # print(np.array(字向量层输出.data.cpu().numpy()).shape)
-        已编码的层 = self.编码器(字向量层输出, 扩展的关注层掩码, 是否输出全部已编码的层=是否输出全部已编码的层)
+        已编码的层 = self.编码器(字向量层输出, 扩展的注意层掩码, 是否输出全部已编码的层=是否输出全部已编码的层)
         序列化的输出 = 已编码的层[-1]
         # print(np.array(序列化的输出.data.cpu().numpy()).shape)
         已池化的输出 = self.池化层(序列化的输出)
