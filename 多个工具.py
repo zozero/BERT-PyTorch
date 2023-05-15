@@ -53,13 +53,14 @@ class 数据集迭代器:
         self.设备 = 设备
 
     def _转成张量(self, 数据):
-        x = torch.LongTensor([_[0] for _ in 数据]).to(self.设备)
-        y = torch.LongTensor([_[1] for _ in 数据]).to(self.设备)
+        一句话 = torch.LongTensor([_[0] for _ in 数据]).to(self.设备)
+        句子标签 = torch.LongTensor([_[1] for _ in 数据]).to(self.设备)
 
-        数据_数量 = torch.LongTensor([_[2] for _ in 数据]).to(self.设备)
-        掩码 = torch.LongTensor([_[3] for _ in 数据]).to(self.设备)
+        文字数量 = torch.LongTensor([_[2] for _ in 数据]).to(self.设备)
+        # 一句话长度32个字，少于32就用0补，有文字的用1表示
+        文字掩码 = torch.LongTensor([_[3] for _ in 数据]).to(self.设备)
 
-        return (x, 数据_数量, 掩码), y
+        return (一句话, 文字数量, 文字掩码), 句子标签
 
     def __next__(self):
         if self.是否有余数 and self.索引 == self.批数:

@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from sklearn import metrics
 
 from 多个工具 import 获得时间偏移量
-from 蟒蛇火炬_预训练.优化器 import 模型的自适应动量估计
+from 蟒蛇火炬_预训练.优化器 import 模型的自适应估计矩
 
 
 def 训练模型(配置, 模型, 训练用迭代器, 验证用迭代器, 测试用迭代器):
@@ -18,10 +18,10 @@ def 训练模型(配置, 模型, 训练用迭代器, 验证用迭代器, 测试�
         {'params': [p for n, p in 参数_优化器 if not any(nd in n for nd in 不_衰减)], 'weight_decay': 0.01},
         {'params': [p for n, p in 参数_优化器 if any(nd in n for nd in 不_衰减)], 'weight_decay': 0.0},
     ]
-    优化器 = 模型的自适应动量估计(优化器_分组_参数列表, 学习率=配置.学习率, 预热=0.05, 训练_总数=len(训练用迭代器) * 配置.轮回数)
+    优化器 = 模型的自适应估计矩(优化器_分组_参数列表, 学习率=配置.学习率, 预热=0.05, 训练_总数=len(训练用迭代器) * 配置.轮回数)
 
     总计批次 = 0
-    验证最佳损失值 = float('inf')
+    最佳验证损失值 = float('inf')
     最后_改善 = 0
     旗帜 = 0
     模型.train()
@@ -38,8 +38,8 @@ def 训练模型(配置, 模型, 训练用迭代器, 验证用迭代器, 测试�
                 预测 = torch.max(输出.data, 1)[1].cpu()
                 训练_准确率 = metrics.accuracy_score(真, 预测)
                 验证_准确率, 验证_损失值 = 评估(配置, 模型, 验证用迭代器)
-                if 验证_损失值 < 验证最佳损失值:
-                    验证最佳损失值 = 验证_损失值
+                if 验证_损失值 < 最佳验证损失值:
+                    最佳验证损失值 = 验证_损失值
                     torch.save(模型.state_dict(), 配置.保存路径)
                     改善 = '*'
                     最后_改善 = 总计批次
