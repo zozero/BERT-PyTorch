@@ -14,6 +14,6 @@
   "pooler_num_fc_layers": 3, 
   "pooler_size_per_head": 128, 
   "pooler_type": "first_token_transform", 
-  "词汇类型数量": 2,
-  "词汇数量": 21128
+  "句子类型数": 2,
+  "文字类型数": 21128
 }

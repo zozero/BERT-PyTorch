@@ -37,9 +37,9 @@ class 模型(nn.Module):
             参数.requires_grad = True
         self.全连接层 = nn.Linear(配置.隐藏层大小, 配置.类别数)
 
-    def forward(self, x):
-        语境 = x[0]
-        掩码 = x[2]
-        _, 已池化 = self.表示法模型(语境, 注意层_掩码=掩码, 是否输出全部已编码的层=False)
+    def forward(self, 输入):
+        句子列表 = 输入[0]
+        句子掩码列表 = 输入[2]
+        _, 已池化 = self.表示法模型(句子列表, 句子掩码列表=句子掩码列表, 是否输出全部已编码的层=False)
         输出 = self.全连接层(已池化)
         return 输出
