@@ -115,7 +115,7 @@ class 模型的配置:
                  词汇数量或者简谱配置文件,
                  隐藏层大小=768,
                  隐藏层个数=12,
-                 注意层的头数=12,
+                 注意力层的头数=12,
                  中间层大小=3072,
                  隐藏层的动作='高斯误差线性单元',
                  隐藏层失活率=0.1,
@@ -129,7 +129,7 @@ class 模型的配置:
         :param 词汇数量或者简谱配置文件: 简谱（json 爪哇脚本对象简谱）
         :param 隐藏层大小:
         :param 隐藏层个数:
-        :param 注意层的头数: 注意层的特征图数量，
+        :param 注意力层的头数: 注意层的特征图数量，
         :param 中间层大小:
         :param 隐藏层的动作:
         :param 隐藏层失活率:
@@ -147,7 +147,7 @@ class 模型的配置:
             self.词汇数量 = 词汇数量或者简谱配置文件
             self.隐藏层大小 = 隐藏层大小
             self.隐藏层个数 = 隐藏层个数
-            self.注意层的头数 = 注意层的头数
+            self.注意力层的头数 = 注意力层的头数
             self.中间层大小 = 中间层大小
             self.隐藏层的动作 = 隐藏层的动作
             self.隐藏层失活率 = 隐藏层失活率
@@ -200,34 +200,34 @@ class 模型的层归一化(nn.Module):
         return self.weight * x + self.bias
 
 
-class 输入的嵌入层网络(nn.Module):
+class 输入的嵌入层(nn.Module):
     """
-    输入的嵌入层网络：是由文字的嵌入层+片段的嵌入层+位置的嵌入层
+    输入的嵌入层：是由文字的嵌入层+片段的嵌入层+位置的嵌入层
     文字的嵌入层：使用中文以汉字为单位；embedding是嵌入的意思，是一组文字张量组成
     片段的嵌入层：片段的嵌入层是用来区分两个句子的，因为外变双向编码器表示法在处理句子对的任务时，需要区分句子对中的上句/下句。\
                 上句所有文字的片段的嵌入层均相同，下句所有文字的片段的嵌入层也相同；换句话说，如果是句子对，片段的嵌入层只会有两种值。
-    位置的嵌入层：标明文字
+    位置的嵌入层：标明文字在这段句子中的位置。
     """
 
     def __init__(self, 配置):
-        super(输入的嵌入层网络, self).__init__()
+        super(输入的嵌入层, self).__init__()
         self.文字的嵌入层 = nn.Embedding(配置.文字类型数, 配置.隐藏层大小, padding_idx=0)
         self.片段的嵌入层 = nn.Embedding(配置.句子类型数, 配置.隐藏层大小)
-        self.位置的嵌入层 = nn.Embedding(配置.最大_位置_字向量层, 配置.隐藏层大小)
+        self.位置的嵌入层 = nn.Embedding(配置.文字最大量, 配置.隐藏层大小)
 
         self.层归一化 = 模型的层归一化(配置.隐藏层大小, 艾普西龙=1e-12)
         self.失活率 = nn.Dropout(配置.隐藏层失活率)
 
-    def forward(self, 输入_标记张量, 字符_类型_标记张量=None):
-        序列长度 = 输入_标记张量.size(1)
-        位置_标记张量 = torch.arange(序列长度, dtype=torch.long, device=输入_标记张量.device)
-        位置_标记张量 = 位置_标记张量.unsqueeze(0).expand_as(输入_标记张量)
-        if 字符_类型_标记张量 is None:
-            字符_类型_标记张量 = torch.zeros_like(输入_标记张量)
+    def forward(self, 句子列表, 记号列表=None):
+        序列长度 = 句子列表.size(1)
+        位置列表 = torch.arange(序列长度, dtype=torch.long, device=句子列表.device)
+        位置列表 = 位置列表.unsqueeze(0).expand_as(句子列表)
+        if 记号列表 is None:
+            记号列表 = torch.zeros_like(句子列表)
 
-        文字的嵌入层 = self.文字的嵌入层(输入_标记张量)
-        片段的嵌入层 = self.片段的嵌入层(字符_类型_标记张量)
-        位置的嵌入层 = self.位置的嵌入层(位置_标记张量)
+        文字的嵌入层 = self.文字的嵌入层(句子列表)
+        片段的嵌入层 = self.片段的嵌入层(记号列表)
+        位置的嵌入层 = self.位置的嵌入层(位置列表)
 
         输入的嵌入层 = 文字的嵌入层 + 位置的嵌入层 + 片段的嵌入层
         输入的嵌入层 = self.层归一化(输入的嵌入层)
@@ -236,52 +236,55 @@ class 输入的嵌入层网络(nn.Module):
         return 输入的嵌入层
 
 
-class 模型的注意自身层(nn.Module):
+class 自注意力层(nn.Module):
     """
-    注意层的头数：是指某一个字向量通过计算【软最大((查询的*被查的)/根号维度数)*特性信息】后得出的特征，这样的特征的数量，一般是8个
+    注意力层的头数：是指某一个字向量通过计算【软最大((查询的*被查的)/根号维度数)*特性信息】后得出的特征，这样的特征的数量，一般是8个
         根号维度数：防止因维度越长导致结果越大
         软最大：softmax函数
-        查询的：q
-        被查的：k
-        特性信息：v
+        查询层：q
+        键值层：k
+        数值层：v
     多头机制：获得多个特征，将所有特征拼接，最后通过全连接层来降维
     """
 
     def __init__(self, 配置):
-        super(模型的注意自身层, self).__init__()
-        if 配置.隐藏层大小 % 配置.注意层的头数 != 0:
-            raise ValueError("隐藏层的大小（%d）不是注意层的头数的倍数（%d）" % (配置.隐藏层大小, 配置.注意层的头数))
-        self.注意层的头数 = 配置.注意层的头数
-        self.倍数 = int(配置.隐藏层大小 / 配置.注意层的头数)
+        super(自注意力层, self).__init__()
+        if 配置.隐藏层大小 % 配置.注意力层的头数 != 0:
+            raise ValueError("隐藏层的大小（%d）不是注意层的头数的倍数（%d）" % (配置.隐藏层大小, 配置.注意力层的头数))
+        self.注意层的头数 = 配置.注意力层的头数
+        self.倍数 = int(配置.隐藏层大小 / 配置.注意力层的头数)
         # 如果倍数不是整数就直接报错了，所以这里其实就是隐藏层大小
         self.总头数 = self.注意层的头数 * self.倍数
 
-        self.查询 = nn.Linear(配置.隐藏层大小, self.总头数)
-        self.被查 = nn.Linear(配置.隐藏层大小, self.总头数)
-        self.特征信息 = nn.Linear(配置.隐藏层大小, self.总头数)
+        self.查询层 = nn.Linear(配置.隐藏层大小, self.总头数)
+        self.键值层 = nn.Linear(配置.隐藏层大小, self.总头数)
+        self.数值层 = nn.Linear(配置.隐藏层大小, self.总头数)
 
         self.失活率 = nn.Dropout(配置.注意层失活率)
 
-    def 改变分数张量的形状(self, x):
+    def 改变张量的形状(self, x):
+        """
+
+        """
         新x的形状 = x.size()[:-1] + (self.注意层的头数, self.倍数)
         x = x.view(*新x的形状)
         # permute：置换
         return x.permute(0, 2, 1, 3)
 
-    def forward(self, 隐藏层状态, 注意层掩码):
-        混合_查询_层 = self.查询(隐藏层状态)
-        混合_被查_层 = self.被查(隐藏层状态)
-        混合_特征信息_层 = self.特征信息(隐藏层状态)
+    def forward(self, 隐藏层输入, 注意层掩码):
+        混合的查询层输出 = self.查询层(隐藏层输入)
+        混合的键值层输出 = self.键值层(隐藏层输入)
+        混合的数值层输出 = self.数值层(隐藏层输入)
 
-        查询_层 = self.改变分数张量的形状(混合_查询_层)
-        被查_层 = self.改变分数张量的形状(混合_被查_层)
-        特征信息_层 = self.改变分数张量的形状(混合_特征信息_层)
+        查询层输出 = self.改变张量的形状(混合的查询层输出)
+        键值层输出 = self.改变张量的形状(混合的键值层输出)
+        数值层输出 = self.改变张量的形状(混合的数值层输出)
 
         # 计算查询和被查之间的点积获得原生的注意层分数
         # matmul：矩阵乘法
-        注意层分数 = torch.matmul(查询_层, 被查_层.transpose(-1, -2))
+        注意层分数 = torch.matmul(查询层输出, 键值层输出.transpose(-1, -2))
         注意层分数 = 注意层分数 / math.sqrt(self.倍数)
-        # 应用注意掩码（为 外变双向编码器表示法的模型 forward() 函数中的所有层预先计算）？？？
+        # 应用注意掩码（为 外变双向编码器表示法 forward() 函数中的所有层预先计算）？？？
         注意层分数 = 注意层分数 + 注意层掩码
 
         # 标准化注意分数为概率值
@@ -290,7 +293,7 @@ class 模型的注意自身层(nn.Module):
         # 这实际上是丢弃了整个字符来处理，这可能看起来有点不寻常，但取自原始的 Transformer 论文。？？？
         注意层概率 = self.失活率(注意层概率)
 
-        语境_层 = torch.matmul(注意层概率, 特征信息_层)
+        语境_层 = torch.matmul(注意层概率, 数值层输出)
         语境_层 = 语境_层.permute(0, 2, 1, 3).contiguous()
         新的_语境_层_形状 = 语境_层.size()[:-2] + (self.总头数,)
         语境_层 = 语境_层.view(*新的_语境_层_形状)
@@ -312,14 +315,14 @@ class 模型注意自身层的输出(nn.Module):
         return 隐藏层状态
 
 
-class 模型的注意层(nn.Module):
+class 注意力层(nn.Module):
     def __init__(self, 配置):
-        super(模型的注意层, self).__init__()
-        self.自身 = 模型的注意自身层(配置)
+        super(注意力层, self).__init__()
+        self.自注意力层 = 自注意力层(配置)
         self.输出 = 模型注意自身层的输出(配置)
 
     def forward(self, 输入的张量, 注意层掩码):
-        自身_输出 = self.自身(输入的张量, 注意层掩码)
+        自身_输出 = self.自注意力层(输入的张量, 注意层掩码)
         注意_输出 = self.输出(自身_输出, 输入的张量)
         return 注意_输出
 
@@ -354,29 +357,29 @@ class 模型的输出层(nn.Module):
         return 隐藏层状态
 
 
-class 模型的层(nn.Module):
+class 编码器的子层(nn.Module):
     def __init__(self, 配置):
-        super(模型的层, self).__init__()
-        self.注意层 = 模型的注意层(配置)
+        super(编码器的子层, self).__init__()
+        self.注意力层 = 注意力层(配置)
         self.中间层 = 模型的中间层(配置)
         self.输出层 = 模型的输出层(配置)
 
     def forward(self, 隐藏层状态, 注意层掩码):
-        注意层_输出 = self.注意层(隐藏层状态, 注意层掩码)
+        注意层_输出 = self.注意力层(隐藏层状态, 注意层掩码)
         中间层_输出 = self.中间层(注意层_输出)
         层_输出 = self.输出层(中间层_输出, 注意层_输出)
         return 层_输出
 
 
-class 模型的编码器(nn.Module):
+class 编码器(nn.Module):
     def __init__(self, 配置):
-        super(模型的编码器, self).__init__()
-        层 = 模型的层(配置)
-        self.层 = nn.ModuleList([copy.deepcopy(层) for _ in range(配置.隐藏层个数)])
+        super(编码器, self).__init__()
+        子层 = 编码器的子层(配置)
+        self.子层列表 = nn.ModuleList([copy.deepcopy(子层) for _ in range(配置.隐藏层个数)])
 
     def forward(self, 隐藏层状态, 注意层掩码, 是否输出全部已编码的层=True):
         全部编码层 = []
-        for 层_模块 in self.层:
+        for 层_模块 in self.子层列表:
             隐藏层状态 = 层_模块(隐藏层状态, 注意层掩码)
             if 是否输出全部已编码的层:
                 全部编码层.append(隐藏层状态)
@@ -385,9 +388,9 @@ class 模型的编码器(nn.Module):
         return 全部编码层
 
 
-class 模型的池化层(nn.Module):
+class 池化层(nn.Module):
     def __init__(self, 配置):
-        super(模型的池化层, self).__init__()
+        super(池化层, self).__init__()
         self.稠密层 = nn.Linear(配置.隐藏层大小, 配置.隐藏层大小)  # 全连接层
         self.激活函数 = nn.Tanh()
 
@@ -399,13 +402,13 @@ class 模型的池化层(nn.Module):
         return 已池化的输出
 
 
-class 模型的预训练模型(nn.Module):
+class 预训练的模型(nn.Module):
     """
     用于初始权重的抽象类和下载并加载预训练模型的简单接口
     """
 
     def __init__(self, 配置, *输入列表, **参数字典):
-        super(模型的预训练模型, self).__init__()
+        super(预训练的模型, self).__init__()
         if not isinstance(配置, 模型的配置):
             raise ValueError(
                 "配置文件（{}）参数应该是一个”模型的配置“的类。"
@@ -498,19 +501,19 @@ class 模型的预训练模型(nn.Module):
             # if 'LayerNorm' in 新键值:
             #     新键值 = 新键值.replace('LayerNorm', '层归一化')
             # if 'Layer' in 新键值:
-            #     新键值 = 新键值.replace('Layer', '层')
+            #     新键值 = 新键值.replace('Layer', '子层列表')
             # if 'encoder' in 新键值:
             #     新键值 = 新键值.replace('encoder', '编码器')
             # if 'attention' in 新键值:
-            #     新键值 = 新键值.replace('attention', '注意层')
+            #     新键值 = 新键值.replace('attention', '注意力层')
             # if 'self' in 新键值:
-            #     新键值 = 新键值.replace('self', '自身')
+            #     新键值 = 新键值.replace('self', '自注意力层')
             # if 'query' in 新键值:
-            #     新键值 = 新键值.replace('query', '查询')
+            #     新键值 = 新键值.replace('query', '查询层')
             # if 'key' in 新键值:
-            #     新键值 = 新键值.replace('key', '被查')
+            #     新键值 = 新键值.replace('key', '键值层')
             # if 'value' in 新键值:
-            #     新键值 = 新键值.replace('value', '特征信息')
+            #     新键值 = 新键值.replace('value', '数值层')
             # if 'output' in 新键值:
             #     新键值 = 新键值.replace('output', '输出层')
             # if 'dense' in 新键值:
@@ -566,22 +569,24 @@ class 模型的预训练模型(nn.Module):
         return 模型
 
 
-class 外变双向编码器表示法的模型(模型的预训练模型):
+class 外变双向编码器表示法(预训练的模型):
     """
     我将Transformers翻译成外变，因为Transformers原意为变形金刚，好像是创作者想要取一个霸气的名字。
     外变相对于内变，这里要表明的是数据的本质即内在没有发生改变，只是表示方式变了，从一堆数据变成了另一堆数据。
-    原先的形变也是同样的意思，即为形状的改变，但貌似无法直接表示外在改变的意思，可能会误解形状的改变，所以就改成了外变
+    原先的形变也是同样的意思，即为形状的改变，但貌似无法直接表示外在改变的意思，可能会误解形状的改变，所以就改成了外变。
+    也可以叫做外变双向编码器表示法神经网络模型
     """
     def __init__(self, 配置):
-        super(外变双向编码器表示法的模型, self).__init__(配置)
-        self.输入的嵌入层 = 输入的嵌入层网络(配置)
-        self.编码器 = 模型的编码器(配置)
-        self.池化层 = 模型的池化层(配置)
+        super(外变双向编码器表示法, self).__init__(配置)
+        self.输入的嵌入层 = 输入的嵌入层(配置)
+        self.编码器 = 编码器(配置)
+        self.池化层 = 池化层(配置)
         self.apply(self.初始化模型的权重)
 
     def forward(self, 句子列表, 记号列表=None, 句子掩码列表=None, 是否输出全部已编码的层=True):
         """
             句子列表：（句子数量，文字数量）
+            记号列表：这里并未有用到，主要是因为我没有实现所有的代码，而复写了部分代码
         """
         if 句子掩码列表 is None:
             句子掩码列表 = torch.ones_like(句子列表)
