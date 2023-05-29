@@ -115,7 +115,7 @@ class 模型的配置:
                  词汇数量或者简谱配置文件,
                  隐藏层大小=768,
                  隐藏层个数=12,
-                 注意力层的头数=12,
+                 多头注意力层数=12,
                  中间层大小=3072,
                  隐藏层的动作='高斯误差线性单元',
                  隐藏层失活率=0.1,
@@ -129,7 +129,7 @@ class 模型的配置:
         :param 词汇数量或者简谱配置文件: 简谱（json 爪哇脚本对象简谱）
         :param 隐藏层大小:
         :param 隐藏层个数:
-        :param 注意力层的头数: 注意层的特征图数量，
+        :param 多头注意力层数: 注意层的特征图数量，
         :param 中间层大小:
         :param 隐藏层的动作:
         :param 隐藏层失活率:
@@ -147,7 +147,7 @@ class 模型的配置:
             self.词汇数量 = 词汇数量或者简谱配置文件
             self.隐藏层大小 = 隐藏层大小
             self.隐藏层个数 = 隐藏层个数
-            self.注意力层的头数 = 注意力层的头数
+            self.多头注意力层数 = 多头注意力层数
             self.中间层大小 = 中间层大小
             self.隐藏层的动作 = 隐藏层的动作
             self.隐藏层失活率 = 隐藏层失活率
@@ -186,18 +186,18 @@ class 模型的配置:
             作者.write(self.转成简谱字符串())
 
 
-class 模型的层归一化(nn.Module):
+class 层归一化(nn.Module):
     def __init__(self, 隐藏层大小, 艾普西龙=1e-12):
-        super(模型的层归一化, self).__init__()
+        super(层归一化, self).__init__()
         self.weight = nn.Parameter(torch.ones(隐藏层大小))
         self.bias = nn.Parameter(torch.zeros(隐藏层大小))
         self.艾普西龙方差 = 艾普西龙
 
-    def forward(self, x):
-        u = x.mean(-1, keepdim=True)
-        s = (x - u).pow(2).mean(-1, keepdim=True)
-        x = (x - u) / torch.sqrt(s + self.艾普西龙方差)
-        return self.weight * x + self.bias
+    def forward(self, 输入):
+        平均值 = 输入.mean(-1, keepdim=True)
+        标准差 = (输入 - 平均值).pow(2).mean(-1, keepdim=True)
+        输入 = (输入 - 平均值) / torch.sqrt(标准差 + self.艾普西龙方差)
+        return self.weight * 输入 + self.bias
 
 
 class 输入的嵌入层(nn.Module):
@@ -215,7 +215,7 @@ class 输入的嵌入层(nn.Module):
         self.片段的嵌入层 = nn.Embedding(配置.句子类型数, 配置.隐藏层大小)
         self.位置的嵌入层 = nn.Embedding(配置.文字最大量, 配置.隐藏层大小)
 
-        self.层归一化 = 模型的层归一化(配置.隐藏层大小, 艾普西龙=1e-12)
+        self.层归一化 = 层归一化(配置.隐藏层大小, 艾普西龙=1e-12)
         self.失活率 = nn.Dropout(配置.隐藏层失活率)
 
     def forward(self, 句子列表, 记号列表=None):
@@ -229,32 +229,31 @@ class 输入的嵌入层(nn.Module):
         片段的嵌入层 = self.片段的嵌入层(记号列表)
         位置的嵌入层 = self.位置的嵌入层(位置列表)
 
-        输入的嵌入层 = 文字的嵌入层 + 位置的嵌入层 + 片段的嵌入层
-        输入的嵌入层 = self.层归一化(输入的嵌入层)
-        输入的嵌入层 = self.失活率(输入的嵌入层)
+        嵌入层的输出 = 文字的嵌入层 + 位置的嵌入层 + 片段的嵌入层
+        嵌入层的输出 = self.层归一化(嵌入层的输出)
+        嵌入层的输出 = self.失活率(嵌入层的输出)
 
-        return 输入的嵌入层
+        return 嵌入层的输出
 
 
 class 自注意力层(nn.Module):
     """
-    注意力层的头数：是指某一个字向量通过计算【软最大((查询的*被查的)/根号维度数)*特性信息】后得出的特征，这样的特征的数量，一般是8个
-        根号维度数：防止因维度越长导致结果越大
-        软最大：softmax函数
-        查询层：q
-        键值层：k
-        数值层：v
+    多头注意力层数：是指某一个字向量通过计算【软最大((查询层*键值层)/根号维度数)*数值层】后得出的特征，这样的特征的数量，一般是8个
+    根号维度数：防止因维度越长导致结果越大
+    软最大：softmax函数
+    查询层：q
+    键值层：k
+    数值层：v
     多头机制：获得多个特征，将所有特征拼接，最后通过全连接层来降维
     """
-
     def __init__(self, 配置):
         super(自注意力层, self).__init__()
-        if 配置.隐藏层大小 % 配置.注意力层的头数 != 0:
-            raise ValueError("隐藏层的大小（%d）不是注意层的头数的倍数（%d）" % (配置.隐藏层大小, 配置.注意力层的头数))
-        self.注意层的头数 = 配置.注意力层的头数
-        self.倍数 = int(配置.隐藏层大小 / 配置.注意力层的头数)
+        if 配置.隐藏层大小 % 配置.多头注意力层数 != 0:
+            raise ValueError("隐藏层的大小（%d）不是多头注意力层数的倍数（%d）" % (配置.隐藏层大小, 配置.多头注意力层数))
+        self.多头注意力层数 = 配置.多头注意力层数
+        self.倍数 = int(配置.隐藏层大小 / 配置.多头注意力层数)
         # 如果倍数不是整数就直接报错了，所以这里其实就是隐藏层大小
-        self.总头数 = self.注意层的头数 * self.倍数
+        self.总头数 = self.多头注意力层数 * self.倍数
 
         self.查询层 = nn.Linear(配置.隐藏层大小, self.总头数)
         self.键值层 = nn.Linear(配置.隐藏层大小, self.总头数)
@@ -262,16 +261,22 @@ class 自注意力层(nn.Module):
 
         self.失活率 = nn.Dropout(配置.注意层失活率)
 
-    def 改变张量的形状(self, x):
+    def 改变张量的形状(self, 输入):
         """
 
+        Args:
+            输入: 形状(128×32×768)，含义（句子数量×文字数量×隐藏层）
+
+        Returns:
+            形状(128×12×32×64)，含义（句子数量×头数×文字数量×隐藏层）
+
         """
-        新x的形状 = x.size()[:-1] + (self.注意层的头数, self.倍数)
-        x = x.view(*新x的形状)
+        新x的形状 = 输入.size()[:-1] + (self.多头注意力层数, self.倍数)
+        输入 = 输入.view(*新x的形状)
         # permute：置换
-        return x.permute(0, 2, 1, 3)
+        return 输入.permute(0, 2, 1, 3)
 
-    def forward(self, 隐藏层输入, 注意层掩码):
+    def forward(self, 隐藏层输入, 注意力掩码):
         混合的查询层输出 = self.查询层(隐藏层输入)
         混合的键值层输出 = self.键值层(隐藏层输入)
         混合的数值层输出 = self.数值层(隐藏层输入)
@@ -282,29 +287,29 @@ class 自注意力层(nn.Module):
 
         # 计算查询和被查之间的点积获得原生的注意层分数
         # matmul：矩阵乘法
-        注意层分数 = torch.matmul(查询层输出, 键值层输出.transpose(-1, -2))
-        注意层分数 = 注意层分数 / math.sqrt(self.倍数)
+        注意力分数 = torch.matmul(查询层输出, 键值层输出.transpose(-1, -2))
+        注意力分数 = 注意力分数 / math.sqrt(self.倍数)
         # 应用注意掩码（为 外变双向编码器表示法 forward() 函数中的所有层预先计算）？？？
-        注意层分数 = 注意层分数 + 注意层掩码
+        注意力分数 = 注意力分数 + 注意力掩码
 
         # 标准化注意分数为概率值
-        注意层概率 = nn.Softmax(dim=-1)(注意层分数)
+        注意力概率 = nn.Softmax(dim=-1)(注意力分数)
 
         # 这实际上是丢弃了整个字符来处理，这可能看起来有点不寻常，但取自原始的 Transformer 论文。？？？
-        注意层概率 = self.失活率(注意层概率)
+        注意力概率 = self.失活率(注意力概率)
 
-        语境_层 = torch.matmul(注意层概率, 数值层输出)
+        语境_层 = torch.matmul(注意力概率, 数值层输出)
         语境_层 = 语境_层.permute(0, 2, 1, 3).contiguous()
         新的_语境_层_形状 = 语境_层.size()[:-2] + (self.总头数,)
         语境_层 = 语境_层.view(*新的_语境_层_形状)
         return 语境_层
 
 
-class 模型注意自身层的输出(nn.Module):
+class 自注意力输出层(nn.Module):
     def __init__(self, 配置):
-        super(模型注意自身层的输出, self).__init__()
+        super(自注意力输出层, self).__init__()
         self.稠密层 = nn.Linear(配置.隐藏层大小, 配置.隐藏层大小)  # 全连接层
-        self.层归一化 = 模型的层归一化(配置.隐藏层大小, 艾普西龙=1e-12)
+        self.层归一化 = 层归一化(配置.隐藏层大小, 艾普西龙=1e-12)
         self.失活率 = nn.Dropout(配置.隐藏层失活率)
 
     def forward(self, 隐藏层状态, 输入的张量):
@@ -319,11 +324,11 @@ class 注意力层(nn.Module):
     def __init__(self, 配置):
         super(注意力层, self).__init__()
         self.自注意力层 = 自注意力层(配置)
-        self.输出 = 模型注意自身层的输出(配置)
+        self.输出层 = 自注意力输出层(配置)
 
-    def forward(self, 输入的张量, 注意层掩码):
-        自身_输出 = self.自注意力层(输入的张量, 注意层掩码)
-        注意_输出 = self.输出(自身_输出, 输入的张量)
+    def forward(self, 输入的张量, 注意力掩码):
+        自身_输出 = self.自注意力层(输入的张量, 注意力掩码)
+        注意_输出 = self.输出层(自身_输出, 输入的张量)
         return 注意_输出
 
 
@@ -346,7 +351,7 @@ class 模型的输出层(nn.Module):
     def __init__(self, 配置):
         super(模型的输出层, self).__init__()
         self.稠密层 = nn.Linear(配置.中间层大小, 配置.隐藏层大小)  # 全连接层
-        self.层归一化 = 模型的层归一化(配置.隐藏层大小, 艾普西龙=1e-12)
+        self.层归一化 = 层归一化(配置.隐藏层大小, 艾普西龙=1e-12)
         self.失活率 = nn.Dropout(配置.隐藏层失活率)
 
     def forward(self, 隐藏层状态, 输入的张量):
@@ -364,8 +369,8 @@ class 编码器的子层(nn.Module):
         self.中间层 = 模型的中间层(配置)
         self.输出层 = 模型的输出层(配置)
 
-    def forward(self, 隐藏层状态, 注意层掩码):
-        注意层_输出 = self.注意力层(隐藏层状态, 注意层掩码)
+    def forward(self, 隐藏层状态, 注意力掩码):
+        注意层_输出 = self.注意力层(隐藏层状态, 注意力掩码)
         中间层_输出 = self.中间层(注意层_输出)
         层_输出 = self.输出层(中间层_输出, 注意层_输出)
         return 层_输出
@@ -377,10 +382,10 @@ class 编码器(nn.Module):
         子层 = 编码器的子层(配置)
         self.子层列表 = nn.ModuleList([copy.deepcopy(子层) for _ in range(配置.隐藏层个数)])
 
-    def forward(self, 隐藏层状态, 注意层掩码, 是否输出全部已编码的层=True):
+    def forward(self, 隐藏层状态, 注意力掩码, 是否输出全部已编码的层=True):
         全部编码层 = []
         for 层_模块 in self.子层列表:
-            隐藏层状态 = 层_模块(隐藏层状态, 注意层掩码)
+            隐藏层状态 = 层_模块(隐藏层状态, 注意力掩码)
             if 是否输出全部已编码的层:
                 全部编码层.append(隐藏层状态)
         if not 是否输出全部已编码的层:
@@ -419,7 +424,7 @@ class 预训练的模型(nn.Module):
     def 初始化模型的权重(self, 模块):
         if isinstance(模块, (nn.Linear, nn.Embedding)):
             模块.weight.data.normal_(mean=0.0, std=self.配置.初始化_范围)
-        elif isinstance(模块, 模型的层归一化):
+        elif isinstance(模块, 层归一化):
             模块.bias.data.zero_()
             模块.weight.data.fill_(1.0)
         if isinstance(模块, nn.Linear) and 模块.bias is not None:
@@ -593,14 +598,14 @@ class 外变双向编码器表示法(预训练的模型):
         if 记号列表 is None:
             记号列表 = torch.zeros_like(句子列表)
 
-        扩展的注意层掩码 = 句子掩码列表.unsqueeze(1).unsqueeze(2)
+        扩展的注意力掩码 = 句子掩码列表.unsqueeze(1).unsqueeze(2)
 
-        扩展的注意层掩码 = 扩展的注意层掩码.to(dtype=next(self.parameters()).dtype)
-        扩展的注意层掩码 = (1.0 - 扩展的注意层掩码) * -10000.0
+        扩展的注意力掩码 = 扩展的注意力掩码.to(dtype=next(self.parameters()).dtype)
+        扩展的注意力掩码 = (1.0 - 扩展的注意力掩码) * -10000.0
 
         字向量层输出 = self.输入的嵌入层(句子列表, 记号列表)
         # print(np.array(字向量层输出.data.cpu().numpy()).shape)
-        已编码的层 = self.编码器(字向量层输出, 扩展的注意层掩码, 是否输出全部已编码的层=是否输出全部已编码的层)
+        已编码的层 = self.编码器(字向量层输出, 扩展的注意力掩码, 是否输出全部已编码的层=是否输出全部已编码的层)
         序列化的输出 = 已编码的层[-1]
         # print(np.array(序列化的输出.data.cpu().numpy()).shape)
         已池化的输出 = self.池化层(序列化的输出)
