@@ -18,7 +18,8 @@ def 训练模型(配置, 模型, 训练用迭代器, 验证用迭代器, 测试�
         {'params': [p for n, p in 参数_优化器 if not any(nd in n for nd in 不_衰减)], 'weight_decay': 0.01},
         {'params': [p for n, p in 参数_优化器 if any(nd in n for nd in 不_衰减)], 'weight_decay': 0.0},
     ]
-    优化器 = 模型的自适应估计矩(优化器_分组_参数列表, 学习率=配置.学习率, 预热=0.05, 训练_总数=len(训练用迭代器) * 配置.轮回数)
+    优化器 = 模型的自适应估计矩(优化器_分组_参数列表, 学习率=配置.学习率, 预热=0.05,
+                                训练_总数=len(训练用迭代器) * 配置.轮回数)
 
     总计批次 = 0
     最佳验证损失值 = float('inf')
@@ -63,8 +64,8 @@ def 测试(配置, 模型, 测试用迭代器):
     模型.load_state_dict(torch.load(配置.保存路径))
     模型.eval()
     开始时间 = time.time()
-    测试_准确率, 测试_损失值, 测试_报告, 测试_混淆 = 评估(配置, 模型, 测试用迭代器, 测试=True)
-    消息 = "测试 损失值：{0:>5.2}，测试 准确率：{1:>6.2%}"
+    测试_准确率, 测试_损失值, 测试_报告, 测试_混淆 = 评估(配置, 模型, 测试用迭代器, 是否测试=True)
+    消息 = "是否测试 损失值：{0:>5.2}，是否测试 准确率：{1:>6.2%}"
     print(消息.format(测试_损失值, 测试_准确率))
     print("精确，召回和F1分数")
     print(测试_报告)
@@ -74,13 +75,13 @@ def 测试(配置, 模型, 测试用迭代器):
     print("使用时间：", 时间消耗)
 
 
-def 评估(配置, 模型, 数据_迭代器, 测试=False):
+def 评估(配置, 模型, 数据集迭代器, 是否测试=False):
     模型.eval()
     总损失值 = 0
     所有预测 = np.array([], dtype=int)
     所有标签 = np.array([], dtype=int)
     with torch.no_grad():
-        for 文本, 标签 in 数据_迭代器:
+        for 文本, 标签 in 数据集迭代器:
             输出 = 模型(文本)
             损失值 = F.cross_entropy(输出, 标签)
             总损失值 += 损失值
@@ -90,8 +91,8 @@ def 评估(配置, 模型, 数据_迭代器, 测试=False):
             所有预测 = np.append(所有预测, 预测)
 
     准确率 = metrics.accuracy_score(所有标签, 所有预测)
-    if 测试:
+    if 是否测试:
         报告 = metrics.classification_report(所有标签, 所有预测, target_names=配置.类别名单, digits=4)
         混淆 = metrics.confusion_matrix(所有标签, 所有预测)
-        return 准确率, 总损失值 / len(数据_迭代器), 报告, 混淆
-    return 准确率, 总损失值 / len(数据_迭代器)
+        return 准确率, 总损失值 / len(数据集迭代器), 报告, 混淆
+    return 准确率, 总损失值 / len(数据集迭代器)

@@ -85,11 +85,11 @@ if __name__ == '__main__':
     # 导入模块，它了整个文件，取名叫模组，之所叫模组是因为文件包含了配置和模型
     模组 = import_module('模型.' + 模型名)
     配置 = 模组.配置(数据集)
-    np.random.seed(1)
-    torch.manual_seed(1)
-    torch.cuda.manual_seed_all(1)
-    torch.backends.cudnn.deterministic = True
-
+    # np.random.seed(1)
+    # torch.manual_seed(1)
+    # torch.cuda.manual_seed_all(1)
+    # torch.backends.cudnn.deterministic = True
+    #
     开始时间 = time.time()
     print("正在载入数据......")
     训练用数据, 验证用数据, 测试用数据 = 构建数据集(配置)

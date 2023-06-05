@@ -11,9 +11,9 @@ class 配置:
         # self.训练_路径 = 数据集 + '/数据集/训练集.txt'
         # self.验证_路径 = 数据集 + '/数据集/验证集.txt'
         # self.测试_路径 = 数据集 + '/数据集/测试集.txt'
-        self.训练_路径 = 数据集 + '/数据集/临时 - 副本/训练集.txt'
-        self.验证_路径 = 数据集 + '/数据集/临时 - 副本/验证集.txt'
-        self.测试_路径 = 数据集 + '/数据集/临时 - 副本/测试集.txt'
+        self.训练_路径 = 数据集 + '/数据集/测试代码用/训练集.txt'
+        self.验证_路径 = 数据集 + '/数据集/测试代码用/验证集.txt'
+        self.测试_路径 = 数据集 + '/数据集/测试代码用/测试集.txt'
         self.类别名单 = [类别.strip() for 类别 in open(数据集 + '/数据集/类别名单.txt').readlines()]
         self.保存路径 = 数据集 + '/保存的字典/' + self.模型名 + '.ckpt'
         self.设备 = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

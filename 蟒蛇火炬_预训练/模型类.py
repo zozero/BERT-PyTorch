@@ -119,7 +119,7 @@ class 模型的配置:
                  中间层大小=3072,
                  隐藏层的动作='高斯误差线性单元',
                  隐藏层失活率=0.1,
-                 注意层失活率=0.1,
+                 注意力层失活率=0.1,
                  最大_位置_字向量层=512,
                  词汇类型数量=2,
                  初始化_范围=0.02
@@ -133,7 +133,7 @@ class 模型的配置:
         :param 中间层大小:
         :param 隐藏层的动作:
         :param 隐藏层失活率:
-        :param 注意层失活率:
+        :param 注意力层失活率:
         :param 最大_位置_字向量层:
         :param 词汇类型数量:
         :param 初始化_范围:
@@ -151,7 +151,7 @@ class 模型的配置:
             self.中间层大小 = 中间层大小
             self.隐藏层的动作 = 隐藏层的动作
             self.隐藏层失活率 = 隐藏层失活率
-            self.注意层失活率 = 注意层失活率
+            self.注意力层失活率 = 注意力层失活率
             self.最大_位置_字向量层 = 最大_位置_字向量层
             self.词汇类型数量 = 词汇类型数量
             self.初始化_范围 = 初始化_范围
@@ -259,7 +259,7 @@ class 自注意力层(nn.Module):
         self.键值层 = nn.Linear(配置.隐藏层大小, self.总头数)
         self.数值层 = nn.Linear(配置.隐藏层大小, self.总头数)
 
-        self.失活率 = nn.Dropout(配置.注意层失活率)
+        self.失活率 = nn.Dropout(配置.注意力层失活率)
 
     def 改变张量的形状(self, 输入):
         """
@@ -292,17 +292,17 @@ class 自注意力层(nn.Module):
         # 应用注意掩码（为 外变双向编码器表示法 forward() 函数中的所有层预先计算）？？？
         注意力分数 = 注意力分数 + 注意力掩码
 
-        # 标准化注意分数为概率值
+        # 标准化注意力分数为概率值
         注意力概率 = nn.Softmax(dim=-1)(注意力分数)
 
-        # 这实际上是丢弃了整个字符来处理，这可能看起来有点不寻常，但取自原始的 Transformer 论文。？？？
+        # 这实际上是丢弃了部分文字，防止过拟合？？
         注意力概率 = self.失活率(注意力概率)
 
-        语境_层 = torch.matmul(注意力概率, 数值层输出)
-        语境_层 = 语境_层.permute(0, 2, 1, 3).contiguous()
-        新的_语境_层_形状 = 语境_层.size()[:-2] + (self.总头数,)
-        语境_层 = 语境_层.view(*新的_语境_层_形状)
-        return 语境_层
+        语境层 = torch.matmul(注意力概率, 数值层输出)
+        语境层 = 语境层.permute(0, 2, 1, 3).contiguous()
+        新语境层形状 = 语境层.size()[:-2] + (self.总头数,)
+        语境层 = 语境层.view(*新语境层形状)
+        return 语境层
 
 
 class 自注意力输出层(nn.Module):
@@ -312,12 +312,12 @@ class 自注意力输出层(nn.Module):
         self.层归一化 = 层归一化(配置.隐藏层大小, 艾普西龙=1e-12)
         self.失活率 = nn.Dropout(配置.隐藏层失活率)
 
-    def forward(self, 隐藏层状态, 输入的张量):
-        隐藏层状态 = self.稠密层(隐藏层状态)
-        隐藏层状态 = self.失活率(隐藏层状态)
-        隐藏层状态 = self.层归一化(隐藏层状态 + 输入的张量)
+    def forward(self, 隐藏层输入, 输入):
+        隐藏层输入 = self.稠密层(隐藏层输入)
+        隐藏层输入 = self.失活率(隐藏层输入)
+        隐藏层输入 = self.层归一化(隐藏层输入 + 输入)
 
-        return 隐藏层状态
+        return 隐藏层输入
 
 
 class 注意力层(nn.Module):
@@ -326,54 +326,54 @@ class 注意力层(nn.Module):
         self.自注意力层 = 自注意力层(配置)
         self.输出层 = 自注意力输出层(配置)
 
-    def forward(self, 输入的张量, 注意力掩码):
-        自身_输出 = self.自注意力层(输入的张量, 注意力掩码)
-        注意_输出 = self.输出层(自身_输出, 输入的张量)
-        return 注意_输出
+    def forward(self, 输入, 注意力掩码):
+        自注意力输出 = self.自注意力层(输入, 注意力掩码)
+        输出 = self.输出层(自注意力输出, 输入)
+        return 输出
 
 
-class 模型的中间层(nn.Module):
+class 中间层(nn.Module):
     def __init__(self, 配置):
-        super(模型的中间层, self).__init__()
+        super(中间层, self).__init__()
         self.稠密层 = nn.Linear(配置.隐藏层大小, 配置.中间层大小)  # 全连接层
         if isinstance(配置.隐藏层的动作, str):
-            self.中间层_动作_函数 = 动作转函数[配置.隐藏层的动作]
+            self.中间层动作函数 = 动作转函数[配置.隐藏层的动作]
         else:
-            self.中间层_动作_函数 = 配置.隐藏层的动作
+            self.中间层动作函数 = 配置.隐藏层的动作
 
-    def forward(self, 隐藏层状态):
-        隐藏层状态 = self.稠密层(隐藏层状态)
-        隐藏层状态 = self.中间层_动作_函数(隐藏层状态)
-        return 隐藏层状态
+    def forward(self, 隐藏层输入):
+        隐藏层输入 = self.稠密层(隐藏层输入)
+        隐藏层输入 = self.中间层动作函数(隐藏层输入)
+        return 隐藏层输入
 
 
-class 模型的输出层(nn.Module):
+class 输出层(nn.Module):
     def __init__(self, 配置):
-        super(模型的输出层, self).__init__()
+        super(输出层, self).__init__()
         self.稠密层 = nn.Linear(配置.中间层大小, 配置.隐藏层大小)  # 全连接层
         self.层归一化 = 层归一化(配置.隐藏层大小, 艾普西龙=1e-12)
         self.失活率 = nn.Dropout(配置.隐藏层失活率)
 
-    def forward(self, 隐藏层状态, 输入的张量):
-        隐藏层状态 = self.稠密层(隐藏层状态)
-        隐藏层状态 = self.失活率(隐藏层状态)
-        隐藏层状态 = self.层归一化(隐藏层状态 + 输入的张量)
+    def forward(self, 隐藏层输入, 输入的张量):
+        隐藏层输入 = self.稠密层(隐藏层输入)
+        隐藏层输入 = self.失活率(隐藏层输入)
+        隐藏层输入 = self.层归一化(隐藏层输入 + 输入的张量)
 
-        return 隐藏层状态
+        return 隐藏层输入
 
 
 class 编码器的子层(nn.Module):
     def __init__(self, 配置):
         super(编码器的子层, self).__init__()
         self.注意力层 = 注意力层(配置)
-        self.中间层 = 模型的中间层(配置)
-        self.输出层 = 模型的输出层(配置)
+        self.中间层 = 中间层(配置)
+        self.输出层 = 输出层(配置)
 
-    def forward(self, 隐藏层状态, 注意力掩码):
-        注意层_输出 = self.注意力层(隐藏层状态, 注意力掩码)
-        中间层_输出 = self.中间层(注意层_输出)
-        层_输出 = self.输出层(中间层_输出, 注意层_输出)
-        return 层_输出
+    def forward(self, 隐藏层输入, 注意力掩码):
+        注意力层输出 = self.注意力层(隐藏层输入, 注意力掩码)
+        中间层输出 = self.中间层(注意力层输出)
+        输出层输出 = self.输出层(中间层输出, 注意力层输出)
+        return 输出层输出
 
 
 class 编码器(nn.Module):
@@ -382,14 +382,14 @@ class 编码器(nn.Module):
         子层 = 编码器的子层(配置)
         self.子层列表 = nn.ModuleList([copy.deepcopy(子层) for _ in range(配置.隐藏层个数)])
 
-    def forward(self, 隐藏层状态, 注意力掩码, 是否输出全部已编码的层=True):
+    def forward(self, 隐藏层输入, 注意力掩码, 是否输出全部已编码的层=True):
         全部编码层 = []
-        for 层_模块 in self.子层列表:
-            隐藏层状态 = 层_模块(隐藏层状态, 注意力掩码)
+        for 子层模块 in self.子层列表:
+            隐藏层输入 = 子层模块(隐藏层输入, 注意力掩码)
             if 是否输出全部已编码的层:
-                全部编码层.append(隐藏层状态)
+                全部编码层.append(隐藏层输入)
         if not 是否输出全部已编码的层:
-            全部编码层.append(隐藏层状态)
+            全部编码层.append(隐藏层输入)
         return 全部编码层
 
 
@@ -399,12 +399,12 @@ class 池化层(nn.Module):
         self.稠密层 = nn.Linear(配置.隐藏层大小, 配置.隐藏层大小)  # 全连接层
         self.激活函数 = nn.Tanh()
 
-    def forward(self, 隐藏层状态):
-        第一个_字符_张量 = 隐藏层状态[:, 0]
-        已池化的输出 = self.稠密层(第一个_字符_张量)
-        已池化的输出 = self.激活函数(已池化的输出)
+    def forward(self, 隐藏层输入):
+        第一个_字符_张量 = 隐藏层输入[:, 0]
+        已池层输出 = self.稠密层(第一个_字符_张量)
+        已池层输出 = self.激活函数(已池层输出)
 
-        return 已池化的输出
+        return 已池层输出
 
 
 class 预训练的模型(nn.Module):

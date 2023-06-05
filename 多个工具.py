@@ -49,6 +49,8 @@ class 数据集迭代器:
         self.是否有余数 = False  # 数据集%每批数量是否有余数
         if len(数据集) % self.批数 != 0:
             self.是否有余数 = True
+        else:
+            self.批数 = self.批数 - 1
         self.索引 = 0
         self.设备 = 设备
 

@@ -34,7 +34,7 @@ class _学习率_进度表(ABC):
             return 1.
         进度 = float(步骤) / self.训练_总数
         返回值 = self.获得_学习率_(进度)
-        if not 不预热 and self.警告_训练_总数 and 进度 > 1. and 进度 > self.进度_训练_总数_警告:
+        if not 不预热 and self.警告_训练_总数 and 进度 > 1. and 进度 > self.进度_训练_总数_已警告:
             记录器.warning("超过指定总数的训练。学习率的乘数设置为{}。请设置正确的训练_总数{}。".format(返回值, self.__class__.__name__))
             self.进度_训练_总数_已警告 = 进度
         return 返回值
